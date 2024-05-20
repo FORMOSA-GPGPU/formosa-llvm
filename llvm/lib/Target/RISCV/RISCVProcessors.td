@@ -83,9 +83,18 @@ def ROCKET_RV64 : RISCVProcessorModel<"rocket-rv64",
 def ROCKET : RISCVTuneProcessorModel<"rocket",
                                      RocketModel>;
 
+def SIMTIX : RISCVProcessorModel<"simtix",
+                                 RocketModel,
+                                 [Feature64Bit,
+                                  FeatureStdExtZicsr,
+                                  FeatureStdExtZifencei,
+                                  FeatureStdExtM,
+                                  FeatureStdExtZicond]>;
+
 defvar SiFive7TuneFeatures = [TuneSiFive7, TuneNoDefaultUnroll,
                               TuneShortForwardBranchOpt,
                               FeaturePostRAScheduler];
+
 def SIFIVE_7 : RISCVTuneProcessorModel<"sifive-7-series",
                                        SiFive7Model, SiFive7TuneFeatures>;
 

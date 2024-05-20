@@ -2081,6 +2081,9 @@ include "RISCVInstrInfoSFB.td"
 include "RISCVInstrInfoXCV.td"
 include "RISCVInstrInfoXwch.td"
 
+// Formosa
+include "RISCVInstrInfoXFormosa.td"
+
 //===----------------------------------------------------------------------===//
 // Global ISel
 //===----------------------------------------------------------------------===//
