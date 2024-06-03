@@ -22115,6 +22115,9 @@ Value *CodeGenFunction::EmitRISCVBuiltinExpr(unsigned BuiltinID,
 
     return Store;
   }
+  case RISCV::BI__builtin_riscv_fsa_pri_raise:
+    ID = Intrinsic::riscv_fsa_pri_raise;
+    break;
 
   // Vector builtins are handled from here.
 #include "clang/Basic/riscv_vector_builtin_cg.inc"
