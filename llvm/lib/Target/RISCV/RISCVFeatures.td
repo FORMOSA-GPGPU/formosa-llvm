@@ -1269,6 +1269,23 @@ def HasVendorXwchc
     : Predicate<"Subtarget->hasVendorXwchc()">,
       AssemblerPredicate<(all_of FeatureVendorXwchc),
                          "'Xwchc' (WCH/QingKe additional compressed opcodes)">;
+// Formosa Extensions
+
+def FeatureVendorXFormosaPri
+    : SubtargetFeature<"xformosapri", "HasVendorXFormosaPri", "true",
+                       "'XFormosaPri' (Formosa Priority Instructions)">;
+def HasVendorXFormosaPri
+    : Predicate<"Subtarget->hasVendorXFormosaPri()">,
+      AssemblerPredicate<(all_of FeatureVendorXFormosaPri),
+                         "'XFormosaPri' (Formosa Priority Instructions)">;
+
+def FeatureVendorXFormosaBar
+    : SubtargetFeature<"xformosabar", "HasVendorXFormosaBar", "true",
+                       "'XFormosaBar' (Formosa Barrier Instructions)">;
+def HasVendorXFormosaBar
+    : Predicate<"Subtarget->hasVendorXFormosaBar()">,
+      AssemblerPredicate<(all_of FeatureVendorXFormosaBar),
+                         "'XFormosaBar' (Formosa Barrier Instructions)">;
 
 //===----------------------------------------------------------------------===//
 // LLVM specific features and extensions

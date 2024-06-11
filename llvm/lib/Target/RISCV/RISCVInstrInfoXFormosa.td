@@ -1,4 +1,5 @@
-let hasSideEffects = 1, mayLoad = 0, mayStore = 0 in
+let Predicates = [HasVendorXFormosaPri, IsRV64],
+    hasSideEffects = 1, mayLoad = 0, mayStore = 0 in
 class XFormosaPri<bits<7> funct7, bits<3> funct3, string opcodestr>
     : RVInstR<funct7, funct3, OPC_CUSTOM_1, (outs), (ins),
               opcodestr, "">;
@@ -21,7 +22,8 @@ def FSA_PRI_RESET : XFormosaPri<0b0000001, 0b000, "fsa.pri.reset">, Sched<[]>{
     let rd = 0;
 }
 
-let hasSideEffects = 1, mayLoad = 0, mayStore = 0 in
+let Predicates = [HasVendorXFormosaBar, IsRV64],
+    hasSideEffects = 1, mayLoad = 0, mayStore = 0 in
 class XFormosaBar<bits<3> funct3, string opcodestr> :
     RVInstI<funct3, OPC_CUSTOM_1, (outs), (ins uimm5:$bid, uimm6:$wc), opcodestr, "$bid, $wc">;
 

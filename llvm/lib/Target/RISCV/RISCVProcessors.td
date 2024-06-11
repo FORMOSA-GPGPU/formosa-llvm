@@ -89,7 +89,9 @@ def SIMTIX : RISCVProcessorModel<"simtix",
                                   FeatureStdExtZicsr,
                                   FeatureStdExtZifencei,
                                   FeatureStdExtM,
-                                  FeatureStdExtZicond]>;
+                                  FeatureStdExtZicond,
+                                  FeatureVendorXFormosaPri,
+                                  FeatureVendorXFormosaBar]>;
 
 defvar SiFive7TuneFeatures = [TuneSiFive7, TuneNoDefaultUnroll,
                               TuneShortForwardBranchOpt,
