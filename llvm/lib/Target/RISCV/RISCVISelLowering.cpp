@@ -9349,10 +9349,6 @@ SDValue RISCVTargetLowering::LowerINTRINSIC_WO_CHAIN(SDValue Op,
 
     return NewNode;
   }
-  case Intrinsic::riscv_fsa_pri_raise: {
-    SDLoc DL(Op);
-    return SDValue(DAG.getMachineNode(RISCV::FSA_PRI_RAISE, DL, MVT::isVoid), 0);
-  }
   }
 
   return lowerVectorIntrinsicScalars(Op, DAG, Subtarget);

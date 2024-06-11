@@ -33,3 +33,7 @@ def FSA_BAR : XFormosaBar<0b001, "fsa.bar"> , Sched<[]>{
     let Inst{25-20} = wc;
     let rs1 = bid;
 }
+
+// Pattern matching for FSA instructions
+
+def : Pat<(int_riscv_fsa_pri_raise), (FSA_PRI_RAISE)>;
