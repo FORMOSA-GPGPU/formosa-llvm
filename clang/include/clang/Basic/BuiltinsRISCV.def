@@ -91,6 +91,7 @@ TARGET_BUILTIN(__builtin_riscv_ntl_store, "v.", "t", "zihintntl")
 
 // XFormosaPri extension
 TARGET_BUILTIN(__builtin_riscv_fsa_pri_raise, "v", "n", "xformosapri,64bit")
+TARGET_BUILTIN(__builtin_riscv_fsa_pri_lower, "v", "n", "xformosapri,64bit")
 
 #undef BUILTIN
 #undef TARGET_BUILTIN

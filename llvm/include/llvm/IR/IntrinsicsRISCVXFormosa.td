@@ -15,3 +15,8 @@ let TargetPrefix = "riscv" in {
   def int_riscv_fsa_pri_raise : ClangBuiltin<"__builtin_riscv_fsa_pri_raise">,
     Intrinsic<[], [], [IntrNoMem,IntrHasSideEffects, IntrWillReturn, IntrNoCallback, IntrNoFree]>;
 } // TargetPrefix = "riscv"
+
+let TargetPrefix = "riscv" in {
+  def int_riscv_fsa_pri_lower : ClangBuiltin<"__builtin_riscv_fsa_pri_lower">,
+    Intrinsic<[], [], [IntrNoMem,IntrHasSideEffects, IntrWillReturn, IntrNoCallback, IntrNoFree]>;
+} // TargetPrefix = "riscv"

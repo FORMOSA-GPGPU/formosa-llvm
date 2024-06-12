@@ -39,3 +39,4 @@ def FSA_BAR : XFormosaBar<0b001, "fsa.bar"> , Sched<[]>{
 // Pattern matching for FSA instructions
 
 def : Pat<(int_riscv_fsa_pri_raise), (FSA_PRI_RAISE)>;
+def : Pat<(int_riscv_fsa_pri_lower), (FSA_PRI_LOWER)>;
