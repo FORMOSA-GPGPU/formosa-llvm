@@ -12,11 +12,15 @@
 
 
 let TargetPrefix = "riscv" in {
-  def int_riscv_fsa_pri_raise : ClangBuiltin<"__builtin_riscv_fsa_pri_raise">,
-    Intrinsic<[], [], [IntrNoMem,IntrHasSideEffects, IntrWillReturn, IntrNoCallback, IntrNoFree]>;
-} // TargetPrefix = "riscv"
+  
+  class RISCVXFormosaPriIntrinsics :
+    Intrinsic<[], [], [IntrNoMem, IntrHasSideEffects, IntrWillReturn, 
+                       IntrNoCallback, IntrNoFree]>;
 
-let TargetPrefix = "riscv" in {
+  def int_riscv_fsa_pri_raise : ClangBuiltin<"__builtin_riscv_fsa_pri_raise">,
+                                RISCVXFormosaPriIntrinsics;
+
   def int_riscv_fsa_pri_lower : ClangBuiltin<"__builtin_riscv_fsa_pri_lower">,
-    Intrinsic<[], [], [IntrNoMem,IntrHasSideEffects, IntrWillReturn, IntrNoCallback, IntrNoFree]>;
+                                RISCVXFormosaPriIntrinsics;
+
 } // TargetPrefix = "riscv"
