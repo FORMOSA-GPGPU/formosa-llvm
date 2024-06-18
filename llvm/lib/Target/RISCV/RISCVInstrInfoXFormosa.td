@@ -25,18 +25,25 @@ def FSA_PRI_RESET : XFormosaPri<0b0000001, 0b000, "fsa.pri.reset">, Sched<[]>{
 let Predicates = [HasVendorXFormosaBar, IsRV64],
     hasSideEffects = 1, mayLoad = 0, mayStore = 0 in
 class XFormosaBar<bits<3> funct3, string opcodestr> :
-    RVInstI<funct3, OPC_CUSTOM_1, (outs), (ins uimm5:$bid, uimm6:$wc), opcodestr, "$bid, $wc">;
+    RVInstI<funct3, OPC_CUSTOM_1, (outs),
+            (ins uimm6:$bid, uimm6:$wc), opcodestr, "$bid, $wc">;
 
 def FSA_BAR : XFormosaBar<0b001, "fsa.bar"> , Sched<[]>{
     bits<6> wc;  // warp count
-    bits<5> bid; // barrier id
+    bits<6> bid; // barrier id
+    let rs1 = 0;
     let rd = 0;
-    let Inst{31-26} = 0;
+    let Inst{31-26} = bid;
     let Inst{25-20} = wc;
-    let rs1 = bid;
 }
 
 // Pattern matching for FSA instructions
 
+class PatUImm6<Intrinsic intrinsic, RVInstI inst>
+    : Pat<(intrinsic uimm6:$imm1, uimm6:$imm2),
+          (inst uimm6:$imm1, uimm6:$imm2)>;
+
 def : Pat<(int_riscv_fsa_pri_raise), (FSA_PRI_RAISE)>;
 def : Pat<(int_riscv_fsa_pri_lower), (FSA_PRI_LOWER)>;
+
+def : PatUImm6<int_riscv_fsa_barrier, FSA_BAR>;
