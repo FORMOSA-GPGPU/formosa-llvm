@@ -45,5 +45,6 @@ class PatUImm6<Intrinsic intrinsic, RVInstI inst>
 
 def : Pat<(int_riscv_fsa_pri_raise), (FSA_PRI_RAISE)>;
 def : Pat<(int_riscv_fsa_pri_lower), (FSA_PRI_LOWER)>;
+def : Pat<(int_riscv_fsa_pri_reset), (FSA_PRI_RESET)>;
 
 def : PatUImm6<int_riscv_fsa_barrier, FSA_BAR>;
