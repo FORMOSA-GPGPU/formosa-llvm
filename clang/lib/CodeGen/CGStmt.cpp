@@ -32,9 +32,12 @@
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/InlineAsm.h"
 #include "llvm/IR/Intrinsics.h"
+#include "llvm/IR/IntrinsicsRISCV.h"
 #include "llvm/IR/MDBuilder.h"
 #include "llvm/Support/SaveAndRestore.h"
 #include <optional>
+
+#define DEBUG_TYPE "formosa-intrinsics"
 
 using namespace clang;
 using namespace CodeGen;
@@ -54,6 +57,13 @@ void CodeGenFunction::EmitStopPoint(const Stmt *S) {
     DI->EmitLocation(Builder, Loc);
 
     LastStopPoint = Loc;
+  }
+}
+
+void CodeGenFunction::CallRISCVFSAPriIntrinsic(llvm::Intrinsic::ID ID) {
+  if (getTarget().getTriple().getArchName() == "riscv64"
+      && getTarget().hasFeature("xformosapri")) {
+    Builder.CreateCall(CGM.getIntrinsic(ID));
   }
 }
 
@@ -152,14 +162,34 @@ void CodeGenFunction::EmitStmt(const Stmt *S, ArrayRef<const Attr *> Attrs) {
   case Stmt::IndirectGotoStmtClass:
     EmitIndirectGotoStmt(cast<IndirectGotoStmt>(*S)); break;
 
-  case Stmt::IfStmtClass:      EmitIfStmt(cast<IfStmt>(*S));              break;
-  case Stmt::WhileStmtClass:   EmitWhileStmt(cast<WhileStmt>(*S), Attrs); break;
-  case Stmt::DoStmtClass:      EmitDoStmt(cast<DoStmt>(*S), Attrs);       break;
-  case Stmt::ForStmtClass:     EmitForStmt(cast<ForStmt>(*S), Attrs);     break;
+  case Stmt::IfStmtClass:
+      CallRISCVFSAPriIntrinsic(llvm::Intrinsic::riscv_fsa_pri_raise);
+      EmitIfStmt(cast<IfStmt>(*S));
+      CallRISCVFSAPriIntrinsic(llvm::Intrinsic::riscv_fsa_pri_lower);
+      break;
+  case Stmt::WhileStmtClass:
+      CallRISCVFSAPriIntrinsic(llvm::Intrinsic::riscv_fsa_pri_raise);
+      EmitWhileStmt(cast<WhileStmt>(*S), Attrs);
+      CallRISCVFSAPriIntrinsic(llvm::Intrinsic::riscv_fsa_pri_lower);
+      break;
+  case Stmt::DoStmtClass:
+      CallRISCVFSAPriIntrinsic(llvm::Intrinsic::riscv_fsa_pri_raise);
+      EmitDoStmt(cast<DoStmt>(*S), Attrs);
+      CallRISCVFSAPriIntrinsic(llvm::Intrinsic::riscv_fsa_pri_lower);
+      break;
+  case Stmt::ForStmtClass:
+      CallRISCVFSAPriIntrinsic(llvm::Intrinsic::riscv_fsa_pri_raise);
+      EmitForStmt(cast<ForStmt>(*S), Attrs);
+      CallRISCVFSAPriIntrinsic(llvm::Intrinsic::riscv_fsa_pri_lower);
+      break;
 
   case Stmt::ReturnStmtClass:  EmitReturnStmt(cast<ReturnStmt>(*S));      break;
 
-  case Stmt::SwitchStmtClass:  EmitSwitchStmt(cast<SwitchStmt>(*S));      break;
+  case Stmt::SwitchStmtClass:
+      CallRISCVFSAPriIntrinsic(llvm::Intrinsic::riscv_fsa_pri_raise);
+      EmitSwitchStmt(cast<SwitchStmt>(*S));
+      CallRISCVFSAPriIntrinsic(llvm::Intrinsic::riscv_fsa_pri_lower);
+      break;
   case Stmt::GCCAsmStmtClass:  // Intentional fall-through.
   case Stmt::MSAsmStmtClass:   EmitAsmStmt(cast<AsmStmt>(*S));            break;
   case Stmt::CoroutineBodyStmtClass:
@@ -199,7 +229,9 @@ void CodeGenFunction::EmitStmt(const Stmt *S, ArrayRef<const Attr *> Attrs) {
     EmitCXXTryStmt(cast<CXXTryStmt>(*S));
     break;
   case Stmt::CXXForRangeStmtClass:
+    CallRISCVFSAPriIntrinsic(llvm::Intrinsic::riscv_fsa_pri_raise);
     EmitCXXForRangeStmt(cast<CXXForRangeStmt>(*S), Attrs);
+    CallRISCVFSAPriIntrinsic(llvm::Intrinsic::riscv_fsa_pri_lower);
     break;
   case Stmt::SEHTryStmtClass:
     EmitSEHTryStmt(cast<SEHTryStmt>(*S));

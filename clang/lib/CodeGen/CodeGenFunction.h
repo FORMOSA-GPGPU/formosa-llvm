@@ -2180,6 +2180,8 @@ public:
     return CGM.getTargetCodeGenInfo();
   }
 
+  void CallRISCVFSAPriIntrinsic(llvm::Intrinsic::ID ID);
+
   //===--------------------------------------------------------------------===//
   //                                  Cleanups
   //===--------------------------------------------------------------------===//
