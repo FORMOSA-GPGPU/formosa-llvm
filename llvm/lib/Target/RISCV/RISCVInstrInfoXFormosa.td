@@ -50,7 +50,7 @@ def FSA_PRI_SET : XFormosaPriI<0b100, "fsa.pri.set.t">, Sched<[]>{
 }
 
 let Predicates = [HasVendorXFormosaBar, IsRV64],
-    hasSideEffects = 1, mayLoad = 0, mayStore = 0 in
+    hasSideEffects = 1, mayLoad = 0, mayStore = 0, isConvergent = 1 in
 class XFormosaBar<bits<3> funct3, string opcodestr> :
     RVInstI<funct3, OPC_CUSTOM_1, (outs),
             (ins uimm6:$bid, uimm6:$wc), opcodestr, "$bid, $wc">;
