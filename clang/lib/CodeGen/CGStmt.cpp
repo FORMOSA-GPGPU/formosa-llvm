@@ -17,8 +17,10 @@
 #include "TargetInfo.h"
 #include "clang/AST/Attr.h"
 #include "clang/AST/Expr.h"
+#include "clang/AST/ParentMapContext.h"
 #include "clang/AST/Stmt.h"
 #include "clang/AST/StmtVisitor.h"
+#include "clang/AST/ASTContext.h"
 #include "clang/Basic/Builtins.h"
 #include "clang/Basic/DiagnosticSema.h"
 #include "clang/Basic/PrettyStackTrace.h"
@@ -61,10 +63,47 @@ void CodeGenFunction::EmitStopPoint(const Stmt *S) {
 }
 
 void CodeGenFunction::CallRISCVFSAPriIntrinsic(llvm::Intrinsic::ID ID) {
-  if (getTarget().getTriple().getArchName() == "riscv64"
-      && getTarget().hasFeature("xformosapri")) {
+  if (getTarget().getTriple().getArchName() == "riscv64" &&
+      getTarget().hasFeature("xformosapri")) {
     Builder.CreateCall(CGM.getIntrinsic(ID));
   }
+}
+
+// Return true if the children of S contains one of the StmtClass Type
+bool CodeGenFunction::ChildrenContainStmtClasses(
+    const Stmt *S, ArrayRef<Stmt::StmtClass> Types) {
+  if (!S)
+    return false;
+
+  // Check current Stmt
+  for (Stmt::StmtClass Type : Types) {
+    if (S->getStmtClass() == Type)
+      return true;
+  }
+
+  // Recursively check children
+  return std::any_of(S->child_begin(), S->child_end(), [&](const Stmt *C) {
+    return ChildrenContainStmtClasses(C, Types);
+  });
+}
+
+// Return true if the parent of S contains one of the StmtClass Type
+bool CodeGenFunction::ParentContainStmtClasses(
+    const Stmt *S, ArrayRef<Stmt::StmtClass> Types) {
+  if (!S)
+    return false;
+
+  // Check current Stmt
+  for (Stmt::StmtClass Type : Types) {
+    if (S->getStmtClass() == Type)
+      return true;
+  }
+
+  // Recursively check parent
+  const auto &parents = getContext().getParents(*S);
+  return std::any_of(parents.begin(), parents.end(), [&](const auto &parent) {
+    return ParentContainStmtClasses(parent.template get<Stmt>(), Types);
+  });
 }
 
 void CodeGenFunction::EmitStmt(const Stmt *S, ArrayRef<const Attr *> Attrs) {
@@ -104,6 +143,8 @@ void CodeGenFunction::EmitStmt(const Stmt *S, ArrayRef<const Attr *> Attrs) {
       return;
     }
   }
+
+  bool AllowInsertFSALower = false;
 
   switch (S->getStmtClass()) {
   case Stmt::NoStmtClass:
@@ -163,35 +204,68 @@ void CodeGenFunction::EmitStmt(const Stmt *S, ArrayRef<const Attr *> Attrs) {
     EmitIndirectGotoStmt(cast<IndirectGotoStmt>(*S)); break;
 
   case Stmt::IfStmtClass:
-      CallRISCVFSAPriIntrinsic(llvm::Intrinsic::riscv_fsa_pri_raise);
-      EmitIfStmt(cast<IfStmt>(*S));
+    CallRISCVFSAPriIntrinsic(llvm::Intrinsic::riscv_fsa_pri_raise);
+    EmitIfStmt(cast<IfStmt>(*S));
+    // Do not generate riscv_fsa_pri_lower if all children has RetrunStmt
+    if (!ChildrenContainStmtClasses(
+            cast<IfStmt>(*S).getThen(),
+            {Stmt::ReturnStmtClass, Stmt::GotoStmtClass}) &&
+        (cast<IfStmt>(*S).getElse() == nullptr ||
+         !ChildrenContainStmtClasses(
+             cast<IfStmt>(*S).getElse(),
+             {Stmt::ReturnStmtClass, Stmt::GotoStmtClass}))) {
       CallRISCVFSAPriIntrinsic(llvm::Intrinsic::riscv_fsa_pri_lower);
-      break;
+    }
+    break;
   case Stmt::WhileStmtClass:
-      CallRISCVFSAPriIntrinsic(llvm::Intrinsic::riscv_fsa_pri_raise);
-      EmitWhileStmt(cast<WhileStmt>(*S), Attrs);
-      CallRISCVFSAPriIntrinsic(llvm::Intrinsic::riscv_fsa_pri_lower);
-      break;
+    CallRISCVFSAPriIntrinsic(llvm::Intrinsic::riscv_fsa_pri_raise);
+    EmitWhileStmt(cast<WhileStmt>(*S), Attrs);
+    CallRISCVFSAPriIntrinsic(llvm::Intrinsic::riscv_fsa_pri_lower);
+    break;
   case Stmt::DoStmtClass:
-      CallRISCVFSAPriIntrinsic(llvm::Intrinsic::riscv_fsa_pri_raise);
-      EmitDoStmt(cast<DoStmt>(*S), Attrs);
-      CallRISCVFSAPriIntrinsic(llvm::Intrinsic::riscv_fsa_pri_lower);
-      break;
+    CallRISCVFSAPriIntrinsic(llvm::Intrinsic::riscv_fsa_pri_raise);
+    EmitDoStmt(cast<DoStmt>(*S), Attrs);
+    CallRISCVFSAPriIntrinsic(llvm::Intrinsic::riscv_fsa_pri_lower);
+    break;
   case Stmt::ForStmtClass:
-      CallRISCVFSAPriIntrinsic(llvm::Intrinsic::riscv_fsa_pri_raise);
-      EmitForStmt(cast<ForStmt>(*S), Attrs);
-      CallRISCVFSAPriIntrinsic(llvm::Intrinsic::riscv_fsa_pri_lower);
-      break;
-
-  case Stmt::ReturnStmtClass:  EmitReturnStmt(cast<ReturnStmt>(*S));      break;
-
+    CallRISCVFSAPriIntrinsic(llvm::Intrinsic::riscv_fsa_pri_raise);
+    EmitForStmt(cast<ForStmt>(*S), Attrs);
+    CallRISCVFSAPriIntrinsic(llvm::Intrinsic::riscv_fsa_pri_lower);
+    break;
+  case Stmt::ReturnStmtClass:
+    EmitReturnStmt(cast<ReturnStmt>(*S));
+    break;
   case Stmt::SwitchStmtClass:
-      CallRISCVFSAPriIntrinsic(llvm::Intrinsic::riscv_fsa_pri_raise);
-      EmitSwitchStmt(cast<SwitchStmt>(*S));
-      CallRISCVFSAPriIntrinsic(llvm::Intrinsic::riscv_fsa_pri_lower);
-      break;
-  case Stmt::GCCAsmStmtClass:  // Intentional fall-through.
-  case Stmt::MSAsmStmtClass:   EmitAsmStmt(cast<AsmStmt>(*S));            break;
+    CallRISCVFSAPriIntrinsic(llvm::Intrinsic::riscv_fsa_pri_raise);
+    EmitSwitchStmt(cast<SwitchStmt>(*S));
+    // Iterate switch children and find the compound statement
+    for (const auto *SC : cast<SwitchStmt>(*S).children()) {
+      if (SC->getStmtClass() == Stmt::CompoundStmtClass) {
+        // Iterate the compound statment to check the condition of insertion
+        auto const last_child = cast<CompoundStmt>(*SC).child_end();
+        for (const auto *CC : cast<CompoundStmt>(*SC).children()) {
+          // If any of the child has no return or goto statement, then we can
+          // insert the intrinsic
+          if (CC->getStmtClass() == Stmt::CaseStmtClass ||
+              CC->getStmtClass() == Stmt::DefaultStmtClass) {
+            AllowInsertFSALower = !ChildrenContainStmtClasses(
+                CC, {Stmt::ReturnStmtClass, Stmt::GotoStmtClass});
+          }
+          // We can insert the intrinsic if we meet a break statement
+          if (AllowInsertFSALower &&
+              (CC->getStmtClass() == Stmt::BreakStmtClass ||
+               CC == *last_child)) {
+            CallRISCVFSAPriIntrinsic(llvm::Intrinsic::riscv_fsa_pri_lower);
+            break;
+          }
+        }
+      }
+    }
+    break;
+  case Stmt::GCCAsmStmtClass: // Intentional fall-through.
+  case Stmt::MSAsmStmtClass:
+    EmitAsmStmt(cast<AsmStmt>(*S));
+    break;
   case Stmt::CoroutineBodyStmtClass:
     EmitCoroutineBody(cast<CoroutineBodyStmt>(*S));
     break;
@@ -1602,6 +1676,14 @@ void CodeGenFunction::EmitReturnStmt(const ReturnStmt &S) {
   ++NumReturnExprs;
   if (!RV || RV->isEvaluatable(getContext()))
     ++NumSimpleReturnExprs;
+
+  if (ParentContainStmtClasses(&cast<Stmt>(S),
+                               {Stmt::IfStmtClass, Stmt::WhileStmtClass,
+                                Stmt::DoStmtClass, Stmt::ForStmtClass,
+                                Stmt::CXXForRangeStmtClass,
+                                Stmt::SwitchStmtClass})) {
+    CallRISCVFSAPriIntrinsic(llvm::Intrinsic::riscv_fsa_pri_lower);
+  }
 
   cleanupScope.ForceCleanup();
   EmitBranchThroughCleanup(ReturnBlock);

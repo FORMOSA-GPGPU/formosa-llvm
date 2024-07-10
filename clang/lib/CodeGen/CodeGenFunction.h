@@ -2180,6 +2180,8 @@ public:
     return CGM.getTargetCodeGenInfo();
   }
 
+  bool ChildrenContainStmtClasses(const Stmt *S, ArrayRef<Stmt::StmtClass> Types);
+  bool ParentContainStmtClasses(const Stmt *S, ArrayRef<Stmt::StmtClass> Types);
   void CallRISCVFSAPriIntrinsic(llvm::Intrinsic::ID ID);
 
   //===--------------------------------------------------------------------===//
