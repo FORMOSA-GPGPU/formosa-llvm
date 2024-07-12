@@ -87,23 +87,25 @@ bool CodeGenFunction::ChildrenContainStmtClasses(
   });
 }
 
-// Return true if the parent of S contains one of the StmtClass Type
-bool CodeGenFunction::ParentContainStmtClasses(
-    const Stmt *S, ArrayRef<Stmt::StmtClass> Types) {
+// Return number the parents of S contains one of the StmtClass Type
+int CodeGenFunction::ParentContainStmtClasses(const Stmt *S,
+                                              ArrayRef<Stmt::StmtClass> Types) {
   if (!S)
-    return false;
+    return 0;
+
+  int total = 0;
 
   // Check current Stmt
   for (Stmt::StmtClass Type : Types) {
     if (S->getStmtClass() == Type)
-      return true;
+      total++;
   }
-
   // Recursively check parent
   const auto &parents = getContext().getParents(*S);
-  return std::any_of(parents.begin(), parents.end(), [&](const auto &parent) {
-    return ParentContainStmtClasses(parent.template get<Stmt>(), Types);
-  });
+  for (const auto &parent : parents) {
+    total += ParentContainStmtClasses(parent.template get<Stmt>(), Types);
+  }
+  return total;
 }
 
 void CodeGenFunction::EmitStmt(const Stmt *S, ArrayRef<const Attr *> Attrs) {
@@ -1677,12 +1679,14 @@ void CodeGenFunction::EmitReturnStmt(const ReturnStmt &S) {
   if (!RV || RV->isEvaluatable(getContext()))
     ++NumSimpleReturnExprs;
 
-  if (ParentContainStmtClasses(&cast<Stmt>(S),
-                               {Stmt::IfStmtClass, Stmt::WhileStmtClass,
-                                Stmt::DoStmtClass, Stmt::ForStmtClass,
-                                Stmt::CXXForRangeStmtClass,
-                                Stmt::SwitchStmtClass})) {
-    CallRISCVFSAPriIntrinsic(llvm::Intrinsic::riscv_fsa_pri_lower);
+  int conditionalStmtCount = 0;
+  if (conditionalStmtCount = ParentContainStmtClasses(
+          &cast<Stmt>(S),
+          {Stmt::IfStmtClass, Stmt::WhileStmtClass, Stmt::DoStmtClass,
+           Stmt::ForStmtClass, Stmt::CXXForRangeStmtClass,
+           Stmt::SwitchStmtClass})) {
+    for (int i = 0; i < conditionalStmtCount; i++)
+      CallRISCVFSAPriIntrinsic(llvm::Intrinsic::riscv_fsa_pri_lower);
   }
 
   cleanupScope.ForceCleanup();
