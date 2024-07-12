@@ -209,13 +209,13 @@ void CodeGenFunction::EmitStmt(const Stmt *S, ArrayRef<const Attr *> Attrs) {
     CallRISCVFSAPriIntrinsic(llvm::Intrinsic::riscv_fsa_pri_raise);
     EmitIfStmt(cast<IfStmt>(*S));
     // Do not generate riscv_fsa_pri_lower if all children has RetrunStmt
-    if (!ChildrenContainStmtClasses(
-            cast<IfStmt>(*S).getThen(),
-            {Stmt::ReturnStmtClass, Stmt::GotoStmtClass}) &&
-        (cast<IfStmt>(*S).getElse() == nullptr ||
-         !ChildrenContainStmtClasses(
-             cast<IfStmt>(*S).getElse(),
-             {Stmt::ReturnStmtClass, Stmt::GotoStmtClass}))) {
+    if (!(ChildrenContainStmtClasses(
+              cast<IfStmt>(*S).getThen(),
+              {Stmt::ReturnStmtClass, Stmt::GotoStmtClass}) &&
+          (cast<IfStmt>(*S).getElse() == nullptr ||
+           ChildrenContainStmtClasses(
+               cast<IfStmt>(*S).getElse(),
+               {Stmt::ReturnStmtClass, Stmt::GotoStmtClass})))) {
       CallRISCVFSAPriIntrinsic(llvm::Intrinsic::riscv_fsa_pri_lower);
     }
     break;
