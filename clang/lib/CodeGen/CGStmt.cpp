@@ -875,6 +875,15 @@ void CodeGenFunction::EmitGotoStmt(const GotoStmt &S) {
   if (HaveInsertPoint())
     EmitStopPoint(&S);
 
+  int conditionalStmtCount = 0;
+  if ((conditionalStmtCount = ParentContainStmtClasses(
+          &cast<Stmt>(S),
+          {Stmt::IfStmtClass, Stmt::WhileStmtClass, Stmt::DoStmtClass,
+           Stmt::ForStmtClass, Stmt::CXXForRangeStmtClass,
+           Stmt::SwitchStmtClass}))) {
+    for (int i = 0; i < conditionalStmtCount; i++)
+      CallRISCVFSAPriIntrinsic(llvm::Intrinsic::riscv_fsa_pri_lower);
+  }
   EmitBranchThroughCleanup(getJumpDestForLabel(S.getLabel()));
 }
 
@@ -1680,11 +1689,11 @@ void CodeGenFunction::EmitReturnStmt(const ReturnStmt &S) {
     ++NumSimpleReturnExprs;
 
   int conditionalStmtCount = 0;
-  if (conditionalStmtCount = ParentContainStmtClasses(
+  if ((conditionalStmtCount = ParentContainStmtClasses(
           &cast<Stmt>(S),
           {Stmt::IfStmtClass, Stmt::WhileStmtClass, Stmt::DoStmtClass,
            Stmt::ForStmtClass, Stmt::CXXForRangeStmtClass,
-           Stmt::SwitchStmtClass})) {
+           Stmt::SwitchStmtClass}))) {
     for (int i = 0; i < conditionalStmtCount; i++)
       CallRISCVFSAPriIntrinsic(llvm::Intrinsic::riscv_fsa_pri_lower);
   }
