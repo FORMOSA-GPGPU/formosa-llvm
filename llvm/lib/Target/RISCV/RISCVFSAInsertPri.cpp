@@ -10,6 +10,7 @@
 #include "llvm/CodeGen/MachinePostDominators.h"
 
 #include <cassert>
+#include <cstddef>
 #include <cstdint>
 #include <iterator>
 using namespace llvm;
@@ -84,7 +85,12 @@ bool FSABranchOpt::runOnMachineFunction(MachineFunction &MF) {
             llvm_unreachable("Unreachable Machine Dom/PDom Basic Block.");
           }
 
-          // dominator reachable BB
+          if(DomNode->getIDom() == nullptr || PDomNode->getIDom() == nullptr){
+            llvm::dbgs() <<  "Either tmp_drbb or tmp_pdrbb is null\n";
+            continue;
+          }
+
+          // dominator reachable BB 
           MachineBasicBlock *DRBB = DomNode->getIDom()->getBlock();
           // post dominator reachable BB
           MachineBasicBlock *PDRBB = PDomNode->getIDom()->getBlock();
@@ -98,7 +104,7 @@ bool FSABranchOpt::runOnMachineFunction(MachineFunction &MF) {
           MachineInstr &PDRBB_First = PDRBB->front();
 
           MadeChange = true;
-          llvm::dbgs() <<  "Insert pri raise at the end of " << DRBB->getName() << "\n";
+          llvm::dbgs() <<  "Insert pri raise at the end of " << DRBB->getFullName() << "\n";
           // Insert fsa.pri.raise at the end of IDom
           BuildMI(*DRBB, DRBB_Last, DRBB_Last.getDebugLoc(),
             TII->get(RISCV::FSA_PRI_RAISE));
