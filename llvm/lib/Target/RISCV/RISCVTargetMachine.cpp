@@ -154,6 +154,8 @@ extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeRISCVTarget() {
   initializeRISCVFSARemoveRedundantPriPass(*PR);
   initializeRISCVFSAInsertMinPCPriPass(*PR);
   initializeRISCVFSAPDomLevelBasedPriorityPass(*PR);
+  initializeRISCVOptFallBBPass(*PR);
+  initializeFSABranchOptPass(*PR);
 }
 
 static StringRef computeDataLayout(const Triple &TT,
@@ -591,6 +593,10 @@ void RISCVPassConfig::addPreEmitPass2() {
     }
     addPass(createRISCVFSAPDomLevelBasedPriorityPass());
   }
+  
+  // Add pass for XFormosaBar
+  addPass(createRISCVFSABranchOptPass());
+
 }
 
 void RISCVPassConfig::addMachineSSAOptimization() {
