@@ -65,6 +65,11 @@ void FSABranchOpt::initialize(MachineFunction &MF) {
 }
 
 bool FSABranchOpt::runOnMachineFunction(MachineFunction &MF) {
+  const auto &ST = MF.getSubtarget<RISCVSubtarget>();
+  // skip the pass if there is no XFormosaPri extension
+  if (!ST.hasFeature(RISCV::FeatureVendorXFormosaPri))
+    return false;
+
   llvm::dbgs() <<  "Running FSABranchOpt on function: " << MF.getName() << "\n";
   bool MadeChange = false;
   initialize(MF);
