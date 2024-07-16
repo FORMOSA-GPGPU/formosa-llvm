@@ -15,10 +15,10 @@
 #include <cstdint>
 #include <iterator>
 using namespace llvm;
-#define DEBUG_TYPE "FSABranchOpt"
+#define DEBUG_TYPE "RISCVFSAInsertPri"
 
 namespace {
-class FSABranchOpt : public MachineFunctionPass {
+class RISCVFSAInsertPri : public MachineFunctionPass {
 private:
   // Target Reg info
   const RISCVRegisterInfo *TRI;
@@ -29,11 +29,11 @@ private:
 
 public:
   static char ID;
-  FSABranchOpt() : MachineFunctionPass(ID) {}
+  RISCVFSAInsertPri() : MachineFunctionPass(ID) {}
   void initialize(MachineFunction &F);
   bool runOnMachineFunction(MachineFunction &MF) override;
   StringRef getPassName() const override {
-    return "FSABranchOpt";
+    return "RISCVFSAInsertPri";
   }
   void getAnalysisUsage(AnalysisUsage &AU) const override {
     AU.addRequired<MachinePostDominatorTree>();
@@ -46,20 +46,20 @@ public:
 } // end of anonymouse namespace
 
 
-char FSABranchOpt::ID = 0;
+char RISCVFSAInsertPri::ID = 0;
 
 
-INITIALIZE_PASS_BEGIN(FSABranchOpt, DEBUG_TYPE,
+INITIALIZE_PASS_BEGIN(RISCVFSAInsertPri, DEBUG_TYPE,
                      "FSA update branch instructions by inserting fsa.pri instructions", false, false)
 INITIALIZE_PASS_DEPENDENCY(MachinePostDominatorTree)
 INITIALIZE_PASS_DEPENDENCY(MachineDominatorTree)
 INITIALIZE_PASS_DEPENDENCY(MachineLoopInfo)
-INITIALIZE_PASS_END(FSABranchOpt, DEBUG_TYPE,
+INITIALIZE_PASS_END(RISCVFSAInsertPri, DEBUG_TYPE,
                      "FSA update branch instructions by inserting fsa.pri instructions", false, false)
 
-// char &llvm::FSABranchOptPassID = FSABranchOpt::ID;
+// char &llvm::RISCVFSAInsertPriPassID = RISCVFSAInsertPri::ID;
 
-void FSABranchOpt::initialize(MachineFunction &MF) {
+void RISCVFSAInsertPri::initialize(MachineFunction &MF) {
   const auto &ST = MF.getSubtarget<RISCVSubtarget>();
   // const HSASubtarget &ST = F.getSubtarget<HSASubtarget>();
   MDT = &getAnalysis<MachineDominatorTree>();
@@ -69,13 +69,13 @@ void FSABranchOpt::initialize(MachineFunction &MF) {
   TRI = ST.getRegisterInfo();
 }
 
-bool FSABranchOpt::runOnMachineFunction(MachineFunction &MF) {
+bool RISCVFSAInsertPri::runOnMachineFunction(MachineFunction &MF) {
   const auto &ST = MF.getSubtarget<RISCVSubtarget>();
   // skip the pass if there is no XFormosaPri extension
   if (!ST.hasFeature(RISCV::FeatureVendorXFormosaPri))
     return false;
 
-  llvm::dbgs() <<  "Running FSABranchOpt on function: " << MF.getName() << "\n";
+  llvm::dbgs() <<  "Running RISCVFSAInsertPri on function: " << MF.getName() << "\n";
   bool MadeChange = false;
   initialize(MF);
   MachineFunction::iterator NextBB;
@@ -129,7 +129,7 @@ bool FSABranchOpt::runOnMachineFunction(MachineFunction &MF) {
                 TII->get(RISCV::FSA_PRI_RAISE));
               goto InsertLowerInst;
             } else {
-              llvm::dbgs() << "Skip pri insertion for possibly loop cond" << InstrName << "\n" in ;
+              llvm::dbgs() << "Skip pri insertion for possibly loop cond " << InstrName << "in BasicBlock: " << MBB.getName() << "\n"; ;
               // Cannot find IDom, skip this branch cond of loop
               continue;
             }
@@ -150,6 +150,6 @@ InsertLowerInst:
   return MadeChange;
 }
 
-FunctionPass *llvm::createRISCVFSABranchOptPass() {
-  return new FSABranchOpt();
+FunctionPass *llvm::createRISCVRISCVFSAInsertPriPass() {
+  return new RISCVFSAInsertPri();
 }
