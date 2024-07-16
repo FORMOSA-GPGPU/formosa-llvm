@@ -4,6 +4,7 @@
 #include "llvm/InitializePasses.h"
 #include "llvm/CodeGen/Passes.h"
 #include "llvm/CodeGen/MachineFunction.h"
+#include "llvm/CodeGen/MachineLoopInfo.h"
 #include "llvm/CodeGen/MachineDominators.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
@@ -24,6 +25,7 @@ private:
   const RISCVInstrInfo *TII;
   MachinePostDominatorTree *MPDT;
   MachineDominatorTree *MDT;
+  MachineLoopInfo *MLI;
 
 public:
   static char ID;
@@ -36,6 +38,7 @@ public:
   void getAnalysisUsage(AnalysisUsage &AU) const override {
     AU.addRequired<MachinePostDominatorTree>();
     AU.addRequired<MachineDominatorTree>();
+    AU.addRequired<MachineLoopInfo>();
     MachineFunctionPass::getAnalysisUsage(AU);
   }
 };
@@ -50,6 +53,7 @@ INITIALIZE_PASS_BEGIN(FSABranchOpt, DEBUG_TYPE,
                      "FSA update branch instructions by inserting fsa.pri instructions", false, false)
 INITIALIZE_PASS_DEPENDENCY(MachinePostDominatorTree)
 INITIALIZE_PASS_DEPENDENCY(MachineDominatorTree)
+INITIALIZE_PASS_DEPENDENCY(MachineLoopInfo)
 INITIALIZE_PASS_END(FSABranchOpt, DEBUG_TYPE,
                      "FSA update branch instructions by inserting fsa.pri instructions", false, false)
 
@@ -60,6 +64,7 @@ void FSABranchOpt::initialize(MachineFunction &MF) {
   // const HSASubtarget &ST = F.getSubtarget<HSASubtarget>();
   MDT = &getAnalysis<MachineDominatorTree>();
   MPDT = &getAnalysis<MachinePostDominatorTree>();
+  MLI = &getAnalysis<MachineLoopInfo>();
   TII = ST.getInstrInfo();
   TRI = ST.getRegisterInfo();
 }
@@ -83,39 +88,60 @@ bool FSABranchOpt::runOnMachineFunction(MachineFunction &MF) {
       Next = std::next(I);
       MachineInstr &MI = *I;
       if(MI.isConditionalBranch()){
+
           DomTreeNodeBase<MachineBasicBlock> *DomNode = MDT->getNode(&MBB);
           DomTreeNodeBase<MachineBasicBlock> *PDomNode = MPDT->getNode(&MBB);
-          if(PDomNode == nullptr || DomNode == nullptr){
-            llvm::dbgs() <<  "Either Dom or PDom is null\n";
-            llvm_unreachable("Unreachable Machine Dom/PDom Basic Block.");
-          }
 
-          if(DomNode->getIDom() == nullptr || PDomNode->getIDom() == nullptr){
-            llvm::dbgs() <<  "Either tmp_drbb or tmp_pdrbb is null\n";
+          if(PDomNode && PDomNode->getIDom() == nullptr){
+            llvm::dbgs() <<  "IPDOM is null\n";
             continue;
           }
-
           // dominator reachable BB 
-          MachineBasicBlock *DRBB = DomNode->getIDom()->getBlock();
+          MachineBasicBlock *DRBB = NULL;
+          if(DomNode && DomNode->getIDom())
+            DRBB = DomNode->getIDom()->getBlock();
           // post dominator reachable BB
           MachineBasicBlock *PDRBB = PDomNode->getIDom()->getBlock();
-
-          if(DRBB == nullptr || PDRBB == nullptr){
-            llvm::dbgs() <<  "Either DRBB or PDRBB is null\n";
+          if(PDRBB == nullptr){
+            llvm::dbgs() <<  "PDRBB is null\n";
             continue;
           }
 
-          MachineInstr &DRBB_Last = DRBB->back();
           MachineInstr &PDRBB_First = PDRBB->front();
 
+          auto InstrName = TII->getName(MI.getOpcode());
           MadeChange = true;
-          llvm::dbgs() <<  "Insert pri raise at the end of " << DRBB->getFullName() << "\n";
-          // Insert fsa.pri.raise at the end of IDom
-          BuildMI(*DRBB, DRBB_Last, DRBB_Last.getDebugLoc(),
-            TII->get(RISCV::FSA_PRI_RAISE));
 
-          llvm::dbgs() <<  "Insert pri lower at the begin of " << PDRBB->getFullName() << "\n";
-          // Insert fsa.pri.lower at the begin of IPDom
+
+          // If the current BB appears to be inside a loop, try to insert fsa.pri.raise at IDom of the BB
+          // to prevent priority saturation inside loop
+          // Consider following mir:
+          // loop:
+          //  ....
+          // BLT x5, x6, loop;
+          // We should not insert pri raise right before BLT, for that would cause priority saturation
+          // if the loop iteration for more than 63 times
+          if(MLI->getLoopFor(&MBB)){
+            if(DRBB){
+              llvm::dbgs() << "Inserting pri raise for possibly loop\n";
+              MachineInstr &DRBB_Last = DRBB->back();
+              BuildMI(*DRBB, DRBB_Last, DRBB_Last.getDebugLoc(),
+                TII->get(RISCV::FSA_PRI_RAISE));
+              goto InsertLowerInst;
+            } else {
+              llvm::dbgs() << "Skip pri insertion for possibly loop cond" << InstrName << "\n" in ;
+              // Cannot find IDom, skip this branch cond of loop
+              continue;
+            }
+          }
+          // Insert a pri raise befor branch inst
+          llvm::dbgs() << "Inserting pri raise before branch instruction: " << InstrName
+                        << " in BasicBlock: " << MBB.getName() << "\n";
+          BuildMI(MBB, MI, MI.getDebugLoc(), 
+          TII->get(RISCV::FSA_PRI_RAISE));
+InsertLowerInst:
+          llvm::dbgs() <<  "Insert pri lower at " << PDRBB->getFullName() << "\n";
+          // Insert fsa.pri.lower at the begining of IPDom
           BuildMI(*PDRBB, PDRBB_First, PDRBB_First.getDebugLoc(),
             TII->get(RISCV::FSA_PRI_LOWER));
       }
