@@ -1721,6 +1721,32 @@ void CodeGenFunction::EmitBreakStmt(const BreakStmt &S) {
   if (HaveInsertPoint())
     EmitStopPoint(&S);
 
+  auto HasIfStmtInLoopStmt = [this](const Stmt *S) {
+    if (isa<IfStmt>(S)) {
+      if (ParentContainStmtClasses(S, {Stmt::WhileStmtClass, Stmt::DoStmtClass,
+                                       Stmt::ForStmtClass,
+                                       Stmt::CXXForRangeStmtClass}))
+        return true;
+    }
+    return false;
+  };
+
+  // if direct parent is a if stmt or compound if stmt, and has a loop ancestor,
+  // then emit a riscv_fsa_pri_lower intrinsic
+  for (const auto &parent : getContext().getParents(S)) {
+    const Stmt *PS = parent.get<Stmt>();
+    if (isa<CompoundStmt>(PS)) {
+      for (const auto &compoundParent : getContext().getParents(*PS)) {
+        if (HasIfStmtInLoopStmt(compoundParent.get<Stmt>())) {
+          CallRISCVFSAPriIntrinsic(llvm::Intrinsic::riscv_fsa_pri_lower);
+          break;
+        }
+      }
+    } else if (HasIfStmtInLoopStmt(PS)) {
+      CallRISCVFSAPriIntrinsic(llvm::Intrinsic::riscv_fsa_pri_lower);
+      break;
+    }
+  }
   EmitBranchThroughCleanup(BreakContinueStack.back().BreakBlock);
 }
 
