@@ -74,7 +74,7 @@ bool RISCVFSAInsertPri::runOnMachineFunction(MachineFunction &MF) {
   // skip the pass if there is no XFormosaPri extension
   if (!ST.hasFeature(RISCV::FeatureVendorXFormosaPri))
     return false;
-
+  std::set<MachineLoop *> ML_set {nullptr};
   llvm::dbgs() <<  "Running RISCVFSAInsertPri on function: " << MF.getName() << "\n";
   bool MadeChange = false;
   initialize(MF);
@@ -104,6 +104,7 @@ bool RISCVFSAInsertPri::runOnMachineFunction(MachineFunction &MF) {
           MachineBasicBlock *PDRBB = PDomNode->getIDom()->getBlock();
           if(PDRBB == nullptr){
             llvm::dbgs() <<  "PDRBB is null\n";
+            // TODO: if PDRBB is null, find branch target and insert lower at the end of that target
             continue;
           }
 
@@ -112,27 +113,112 @@ bool RISCVFSAInsertPri::runOnMachineFunction(MachineFunction &MF) {
           auto InstrName = TII->getName(MI.getOpcode());
           MadeChange = true;
 
-
-          // If the current BB appears to be inside a loop, try to insert fsa.pri.raise at IDom of the BB
-          // to prevent priority saturation inside loop
+          /*
+          // If the current BB appears to be inside a loop, try to insert fsa.pri.raise
+          // at PreHeader of the BB to prevent priority saturation inside loop
           // Consider following mir:
-          // loop:
-          //  ....
-          // BLT x5, x6, loop;
-          // We should not insert pri raise right before BLT, for that would cause priority saturation
-          // if the loop iteration for more than 63 times
-          if(MLI->getLoopFor(&MBB)){
-            if(DRBB){
-              llvm::dbgs() << "Inserting pri raise for possibly loop\n";
-              MachineInstr &DRBB_Last = DRBB->back();
-              BuildMI(*DRBB, DRBB_Last, DRBB_Last.getDebugLoc(),
-                TII->get(RISCV::FSA_PRI_RAISE));
+          //    loop:
+          //        ....
+          //    BLT x5, x6, loop;
+          // We should not insert pri.raise right before BLT, for that would cause priority
+          // saturation if the loop iteration for a lot of times, the following section
+          // is trying to deal it with following order when we find a loop:
+          //    1. A set ML_set with only a nullptr inside it when init.
+          //    2. When Identify a MachineLoop ML, do following:
+          //        * If ML is not inside ML_set, this is a ML we haven't meet before,
+          //          try to locate PreHeader (The BB immediate before the loop) of ML and insert
+          //          pri.raise at the begining of PreHeader (We cannot insert at end of preheader, 
+          //          cause we may insert inst. after the terminator of that BB, and may cause such 
+          //          inst. to be a dead code which won't ever be executed.)
+          //        * If cannot locate the PreHeader of ML, we simply skip this loop.
+          //        * No matter the PreHeader is located or not, insert ML into ML_set.
+          //        * If ML is inside ML_set, means this is a ML we have already try to guarded it by 
+          //          pri.raise, pri.lower before, goto 3. for other processing.
+          //    3. If current branch is inside the loop. Check if the cond branch's
+          //       IPDom is inside the same for loop (there has no return/break statement). If
+          //       true, add raise before the inst and add lower at IPDom.
+          //    4. Current branch's IPDom is outside loop, simply skip the branch
+          */
+          if(MachineLoop *ML = MLI->getLoopFor(&MBB)){
+              // Current Loop is a new identified loop (Cannot find in ML_set)
+              if(!ML_set.count(ML)){
+                // 2. try to locate the Loop
+                MachineBasicBlock *preHeader = MLI->findLoopPreheader(ML);
+                ML_set.insert(ML);
+                if(preHeader){
+                  MachineInstr &LoopHead_fisrt = preHeader->front();
+                  llvm::dbgs() << "Inserting pri raise before loop in BasicBlock: " 
+                                << MBB.getName() << "\n";
+                  BuildMI(*preHeader, LoopHead_fisrt, LoopHead_fisrt.getDebugLoc(), 
+                  TII->get(RISCV::FSA_PRI_RAISE));
+                  goto InsertLowerInst;
+                } else {
+                  llvm::dbgs() << "Cannot find preheader of loop in BasicBlock: " 
+                                << MBB.getName() << ", skip the loop\n";
+                  continue;
+                }
+              }
+
+              // * if current branch is in the loop ctrl block
+              // means current branch is the exit cond of loop
+              // insert pri.raise before loop if IDom exist (DRBB != nullptr)
+              // We can assure that an IPDom of LoopCtrlBlock would always 
+              // outside the loop, so we won't need to handle the situation
+              // that there has no IDom (goto else if block) while LCBB's 
+              // IPDom is inside loop and cause priority saturation for misinserting
+              // fsa.pri.raise
+              
+              // findLoopControlBlock Will return NULL if there has multiple leave point
+              // of the Loop, so This way is impractical
+
+              // TODO: use findLoopPreheader to insert raise in preHeader?
+              // We can use BranchTarget to check if a cond branch will leave the loop
+              // However, if there are multiple exit point, we shouldn't add multiple
+              // raise/lower
+              // Perhaps try following:
+              // * If BranchTarget will leave the loop
+              // * Insert raise at IDom and lower at IPDom if IDom's first inst is not
+              //   fsa.pri.raise (Haven't been insert pri inst for cur loop before)
+              // * If cond branch's IPDom is outside the loop, skip the branch. Otherwise
+              //   Insert raise before branch and lower at IPDom of the branch
+
+            // MachineBasicBlock *LCBB = ML->findLoopControlBlock();
+            // if(DRBB && LCBB && LCBB == &MBB){ // Compare unique number to ensure LCBB == MBB
+            //   llvm::dbgs() << "Inserting pri raise before loop\n";
+            //   MachineInstr &DRBB_Last = DRBB->front();
+            //   BuildMI(*DRBB, DRBB_Last, DRBB_Last.getDebugLoc(),
+            //     TII->get(RISCV::FSA_PRI_RAISE));
+            //   goto InsertLowerInst;
+            // } else 
+            
+            if(MLI->getLoopFor(&MBB) == MLI->getLoopFor(PDRBB)){
+              // 3. When the cond branch's IPDom is inside the same for loop
+              // and cond branch is not loop ctrl block
+              // ( findLoopControlBlock() return false )
+              // Add rasie before the inst and add lower at IPDom
+              llvm::dbgs() << "Inserting pri raise before branch instruction: " << InstrName
+                            << " in BasicBlock: " << MBB.getName() << "\n";
+              BuildMI(MBB, MI, MI.getDebugLoc(), 
+              TII->get(RISCV::FSA_PRI_RAISE));
               goto InsertLowerInst;
             } else {
-              llvm::dbgs() << "Skip pri insertion for possibly loop cond " << InstrName << "in BasicBlock: " << MBB.getName() << "\n"; ;
-              // Cannot find IDom, skip this branch cond of loop
+              // 4. Skip the branch
+              // llvm::dbgs() << "LCBB ptr is " << LCBB << "\n";
+              llvm::dbgs() << "Skip pri insertion for possibly loop cond " << InstrName
+              << "in BasicBlock: " << MBB.getName() << "\n"; ;
               continue;
             }
+            // if(DRBB && MLI->getLoopFor(&MBB) == MLI->getLoopFor(PDRBB)){
+            //   llvm::dbgs() << "Inserting pri raise for possibly loop\n";
+            //   MachineInstr &DRBB_Last = DRBB->front();
+            //   BuildMI(*DRBB, DRBB_Last, DRBB_Last.getDebugLoc(),
+            //     TII->get(RISCV::FSA_PRI_RAISE));
+            //   goto InsertLowerInst;
+            // } else {
+            //   llvm::dbgs() << "Skip pri insertion for possibly loop cond " << InstrName << "in BasicBlock: " << MBB.getName() << "\n"; ;
+            //   // If IDom not exist or IPDom is outside the loop, skip this branch inside loop
+            //   continue;
+            // }
           }
           // Insert a pri raise befor branch inst
           llvm::dbgs() << "Inserting pri raise before branch instruction: " << InstrName
