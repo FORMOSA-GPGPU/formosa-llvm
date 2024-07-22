@@ -71,6 +71,7 @@ void RISCVFSAInsertPri::initialize(MachineFunction &MF) {
 
 bool RISCVFSAInsertPri::runOnMachineFunction(MachineFunction &MF) {
   const auto &ST = MF.getSubtarget<RISCVSubtarget>();
+  int insert_pair = 0;
   // skip the pass if there is no XFormosaPri extension
   if (!ST.hasFeature(RISCV::FeatureVendorXFormosaPri))
     return false;
@@ -141,11 +142,9 @@ bool RISCVFSAInsertPri::runOnMachineFunction(MachineFunction &MF) {
           //        * No matter the PreHeader is located or not, insert ML into ML_set.
           //        * If ML is inside ML_set, means this is a ML we have already try to guarded it by 
           //          pri.raise, pri.lower before, goto 3. for other processing.
-          //    3. If current cond branch is inside the loop. try find a PDom node pd satisfied following:
-          //        * Init: pd = IPDom(MBB)
-          //        * keep evaluate {pd = IPDom(pd)} until pd is in the same loop of current cond branch
-          //          3.1 If pd is not null, add raise before the MBB and add lower at pd.
-          //          3.2 If pd is null, skip this branch.
+          //    3. If current cond branch is inside the loop. Check whether IPDom of cond branch is inside
+          //       ths same loop. If so, add raise before the MBB and add lower at IPDom. Else skip this
+          //       cond branch.
           */
 
           if(MachineLoop *ML = MLI->getLoopFor(&MBB)){
@@ -188,6 +187,7 @@ bool RISCVFSAInsertPri::runOnMachineFunction(MachineFunction &MF) {
                   << " in BasicBlock: " << MBB.getName() << "\n"; ;
                   continue;
                 }
+                // Else: insert pri
                 llvm::dbgs() << "Inserting pri raise before loop in BasicBlock: " 
                               << MBB.getName() << "\n";
                 BuildMI(*preHeader, LoopHead_fisrt, LoopHead_fisrt.getDebugLoc(), 
@@ -200,24 +200,16 @@ bool RISCVFSAInsertPri::runOnMachineFunction(MachineFunction &MF) {
               }
             }
 
-            // 3. Try find a PDom node pd
-            llvm::dbgs() << "Try finding IPDom of pri raise before branch instruction: " << InstrName
-                          << " in BasicBlock: " << MBB.getName() << "\n";
-            while(PDomNode && ML != MLI->getLoopFor(PDomNode->getBlock())){
-              PDomNode = PDomNode->getIDom();
-            }
-            PDRBB = PDomNode->getBlock();
-            // 3.1
-            if(PDRBB){
+            // 3. If cond branch is inside loop, insert pri.raise iff IPDom is inside same loop
+            if (ML == MLI->getLoopFor(PDRBB)){
               llvm::dbgs() << "Inserting pri raise before branch instruction: " << InstrName
                             << " in BasicBlock: " << MBB.getName() << "\n";
               BuildMI(MBB, MI, MI.getDebugLoc(), 
               TII->get(RISCV::FSA_PRI_RAISE));
               goto InsertLowerInst;
             } else {
-              // 3.2 Skip the branch
-              llvm::dbgs() << "Skip pri insertion for possibly loop cond " << InstrName
-              << " in BasicBlock: " << MBB.getName() << "\n"; ;
+              llvm::dbgs() << "Cannot find suitable point for inserting pri.lower for possibly loop cond" << "\n" << 
+              "Skip pri insertion for possibly loop cond " << InstrName << " in BasicBlock: " << MBB.getName() << "\n";
               continue;
             }
           }
@@ -232,9 +224,11 @@ InsertLowerInst:
           // Insert fsa.pri.lower at the begining of IPDom
           BuildMI(*PDRBB, PDRBB_First, PDRBB_First.getDebugLoc(),
             TII->get(RISCV::FSA_PRI_LOWER));
+          ++insert_pair;
       }
     }
   }
+  llvm::dbgs() << insert_pair << " pairs of pri raise/lower on function: " << MF.getName() << "\n";
   return MadeChange;
 }
 
