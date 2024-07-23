@@ -154,7 +154,6 @@ extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeRISCVTarget() {
   initializeRISCVFSARemoveRedundantPriPass(*PR);
   initializeRISCVFSAInsertMinPCPriPass(*PR);
   initializeRISCVFSAPDomLevelBasedPriorityPass(*PR);
-  initializeRISCVOptFallBBPass(*PR);
   initializeRISCVFSAInsertPriPass(*PR);
 }
 
