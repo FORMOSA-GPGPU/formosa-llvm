@@ -65,13 +65,13 @@ bool RISCVFSAInsertPri::runOnMachineFunction(MachineFunction &MF) {
   if (!ST.hasFeature(RISCV::FeatureVendorXFormosaPri))
     return false;
   std::set<MachineLoop *> MLoopSet{nullptr};
-  llvm::dbgs() << "------------------------------------------------------------"
-                  "\n";
-  llvm::dbgs() << "Running RISCVFSAInsertPri on function: " << MF.getName()
-               << "\n";
-  llvm::dbgs() << "------------------------------------------------------------"
-                  "\n\n\n";
-
+  LLVM_DEBUG(
+      dbgs() << "------------------------------------------------------------"
+                "\n";
+      dbgs() << "Running RISCVFSAInsertPri on function: " << MF.getName()
+             << "\n";
+      dbgs() << "------------------------------------------------------------"
+                "\n\n\n";);
   bool MadeChange = false;
   initialize(MF);
   MachineFunction::iterator NextBB;
@@ -86,15 +86,14 @@ bool RISCVFSAInsertPri::runOnMachineFunction(MachineFunction &MF) {
       if (MI.isConditionalBranch()) {
         DomTreeNodeBase<MachineBasicBlock> *PDomNode = MPDT->getNode(&MBB);
         auto InstrName = TII->getName(MI.getOpcode());
-
-        llvm::dbgs() << "Locate branch inst " << InstrName << " in BasicBlock "
-                     << MBB.getName() << "\n";
+        LLVM_DEBUG(dbgs() << "Locate branch inst " << InstrName
+                          << " in BasicBlock " << MBB.getName() << "\n";);
 
         // post dominator reachable BB
         MachineBasicBlock *PDRBB = nullptr;
         if (!(PDomNode && PDomNode->getIDom() &&
               (PDRBB = PDomNode->getIDom()->getBlock()))) {
-          llvm::dbgs() << "Cannot locate IPDOM, skip pri insertion\n\n";
+          LLVM_DEBUG(dbgs() << "Cannot locate IPDOM, skip pri insertion\n\n";);
           continue;
         }
         /* clang-format off */ 
@@ -135,8 +134,7 @@ bool RISCVFSAInsertPri::runOnMachineFunction(MachineFunction &MF) {
         /* clang-format on */
 
         if (MachineLoop *ML = MLI->getLoopFor(&MBB)) {
-          llvm::dbgs() << "Current branch is inside loop\n";
-
+          LLVM_DEBUG(dbgs() << "Current branch is inside loop\n";);
           // Current Loop is a new identified loop (Cannot find in MLoopSet)
           if (!MLoopSet.count(ML)) {
             // 2. try to locate the Loop
@@ -154,69 +152,76 @@ bool RISCVFSAInsertPri::runOnMachineFunction(MachineFunction &MF) {
               //            <- L1's IPDom
               //  end_loop L2
               if (PreHeadMLoop) {
-                llvm::dbgs()
-                    << "PreHeader of current loop is also in another loop, try "
-                       "find suitable PDom in same loop of PreHeader\n";
+                LLVM_DEBUG(
+                    dbgs()
+                        << "PreHeader of current loop is also in another loop, "
+                           "try "
+                           "find suitable PDom in same loop of PreHeader\n";);
                 while (PDomNode) {
                   if (MLI->getLoopFor(PDomNode->getBlock()) == PreHeadMLoop)
                     break;
                   PDomNode = PDomNode->getIDom();
-                  llvm::dbgs()
-                      << "Finding next PDom in block " << MBB.getName() << "\n";
+                  LLVM_DEBUG(dbgs() << "Finding next PDom in block "
+                                    << MBB.getName() << "\n";);
                 }
               } else {
                 // 2.2 preHead is not in loop, IPDom shouldn't be in loop either
-                llvm::dbgs()
-                    << "IPDom is in loop while PreHeader of loop is not\n";
+                LLVM_DEBUG(dbgs() << "IPDom is in loop while PreHeader "
+                                     "of loop is not\n";);
                 while (PDomNode && MLI->getLoopFor(PDomNode->getBlock())) {
                   PDomNode = PDomNode->getIDom();
-                  llvm::dbgs()
-                      << "Finding next PDom in block " << MBB.getName() << "\n";
+                  LLVM_DEBUG(dbgs() << "Finding next PDom in block "
+                                    << MBB.getName() << "\n";);
                 }
               }
               // Cannot find a suitable IPDom
               if (!PDomNode || !(PDRBB = PDomNode->getBlock())) {
-                llvm::dbgs()
-                    << "Cannot find suitable PDom, skip pri insertion\n\n";
+                LLVM_DEBUG(dbgs() << "Cannot find suitable PDom, skip "
+                                     "pri insertion\n\n";);
                 continue;
               }
               // Else: insert pri
-              llvm::dbgs()
-                  << "Inserting pri raise at begining of loopPreHeader\n";
+              LLVM_DEBUG(
+                  dbgs()
+                      << "Inserting pri raise at begining of loopPreHeader\n";);
               BuildMI(*PreHeader, LoopHeadFisrt, LoopHeadFisrt.getDebugLoc(),
                       TII->get(RISCV::FSA_PRI_RAISE));
               goto InsertLowerInst;
             } else {
-              llvm::dbgs() << "Cannot find preheader of loop in BasicBlock: "
-                           << MBB.getName() << ", skip the loop\n\n";
+              LLVM_DEBUG(dbgs()
+                             << "Cannot find preheader of loop in BasicBlock: "
+                             << MBB.getName() << ", skip the loop\n\n";);
               continue;
             }
           }
 
-          // 3. If cond branch is inside loop, try find a PDom inside the same loop
-          // If founded, insert pri.raise/lower. Else skip the branch
-          // We also need to ensure that PDom->getBlock() won't be MBB itself.
+          // 3. If cond branch is inside loop, try find a PDom inside the same
+          // loop If founded, insert pri.raise/lower. Else skip the branch We
+          // also need to ensure that PDom->getBlock() won't be MBB itself.
           do {
             PDRBB = PDomNode->getBlock();
             PDomNode = PDomNode->getIDom();
-          }while (PDomNode && ML != MLI->getLoopFor(PDRBB));
+          } while (PDomNode && ML != MLI->getLoopFor(PDRBB));
 
           if (PDRBB != &MBB) {
-            llvm::dbgs() << "Inserting pri raise before branch instruction\n";
+            LLVM_DEBUG(
+                dbgs() << "Inserting pri raise before branch instruction\n";);
             BuildMI(MBB, MI, MI.getDebugLoc(), TII->get(RISCV::FSA_PRI_RAISE));
             goto InsertLowerInst;
           } else {
-            llvm::dbgs() << "Cannot find a suitable PDom of branch for insertion, skip the branch inside loop\n\n";
+            LLVM_DEBUG(dbgs() << "Cannot find a suitable PDom of branch for "
+                                 "insertion, skip the branch inside loop\n\n";);
             continue;
           }
         }
         // Insert a pri raise befor branch inst if MBB is not in loop
-        llvm::dbgs() << "Inserting pri raise before branch instruction\n";
+        LLVM_DEBUG(
+            dbgs() << "Inserting pri raise before branch instruction\n";);
         BuildMI(MBB, MI, MI.getDebugLoc(), TII->get(RISCV::FSA_PRI_RAISE));
       InsertLowerInst:
         MachineInstr &PDRBBFirst = PDRBB->front();
-        llvm::dbgs() << "Insert pri lower at " << PDRBB->getFullName()
-                     << "\n\n";
+        LLVM_DEBUG(dbgs() << "Insert pri lower at " << PDRBB->getFullName()
+                          << "\n\n";);
         // Insert fsa.pri.lower at the begining of IPDom
         BuildMI(*PDRBB, PDRBBFirst, PDRBBFirst.getDebugLoc(),
                 TII->get(RISCV::FSA_PRI_LOWER));
@@ -225,9 +230,8 @@ bool RISCVFSAInsertPri::runOnMachineFunction(MachineFunction &MF) {
       }
     }
   }
-  llvm::dbgs() << InsertPair
-               << " pair(s) of pri raise/lower on function: " << MF.getName()
-               << "\n\n\n";
+  LLVM_DEBUG(dbgs() << InsertPair << " pair(s) of pri raise/lower on function: "
+                    << MF.getName() << "\n\n\n";);
   return MadeChange;
 }
 
