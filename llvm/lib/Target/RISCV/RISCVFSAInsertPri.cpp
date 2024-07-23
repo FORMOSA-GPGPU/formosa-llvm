@@ -98,40 +98,40 @@ bool RISCVFSAInsertPri::runOnMachineFunction(MachineFunction &MF) {
           continue;
         }
         /* clang-format off */ 
-          /*
-          // If the current BB appears to be inside a loop, try to insert fsa.pri.raise
-          // at PreHeader of the BB to prevent priority saturation inside loop
-          // Consider following mir:
-          //    loop:
-          //        ....
-          //    BLT x5, x6, loop;
-          // We should not insert pri.raise right before BLT, for that would cause priority
-          // saturation if the loop iteration for a lot of times, the following section
-          // is trying to deal it with following order when we find a loop:
-          //    1. A set MLoopSet with only a nullptr inside it when init.
-          //    2. When Identify a MachineLoop ML, do following:
-          //        * If ML is not inside MLoopSet, this is a ML we haven't meet before,
-          //          try to locate PreHeader (The BB immediate before the loop) of ML and insert
-          //          pri.raise at the begining of PreHeader (We cannot insert at end of preheader, 
-          //          cause we may insert inst. after the terminator of that BB, and may cause such 
-          //          inst. to be a dead code which won't ever be executed.)
-          //          While locating PreHeader, we also check following:
-          //          2.1 If PreHeader is inside another loop L2, try find a PDom node N satisfied following:
-          //            * Init: pd = IPDom(PreHeader)
-          //            * keep evaluate {pd = IPDom(pd)} will eventually let pd become node N
-          //            * N is inside the same loop L2. 
-          //            If we cannot find such IPDom, skip handle this loop.
-          //          2.2 If PreHeader isn't inside any loop, try find a PDom node pd satisfied following:
-          //            * Init: pd = IPDom(PreHeader)
-          //            * keep evaluate {pd = IPDom(pd)} when pd is not in any loop
-          //        * If we cannot locate the PreHeader of ML, simply skip this loop.
-          //        * No matter the PreHeader is located or not, insert ML into MLoopSet.
-          //        * If ML is inside MLoopSet, means this is a ML we have already try to guarded it by 
-          //          pri.raise, pri.lower before, goto 3. for other processing.
-          //    3. If current cond branch is inside the loop. Check whether IPDom of cond branch is inside
-          //       ths same loop. If so, add raise before the MBB and add lower at IPDom. Else skip this
-          //       cond branch.
-          */
+        /*
+        // If the current BB appears to be inside a loop, try to insert fsa.pri.raise
+        // at PreHeader of the BB to prevent priority saturation inside loop
+        // Consider following mir:
+        //    loop:
+        //        ....
+        //    BLT x5, x6, loop;
+        // We should not insert pri.raise right before BLT, for that would cause priority
+        // saturation if the loop iteration for a lot of times, the following section
+        // is trying to deal it with following order when we find a loop:
+        //    1. A set MLoopSet with only a nullptr inside it when init.
+        //    2. When Identify a MachineLoop ML, do following:
+        //        * If ML is not inside MLoopSet, this is a ML we haven't meet before,
+        //          try to locate PreHeader (The BB immediate before the loop) of ML and insert
+        //          pri.raise at the begining of PreHeader (We cannot insert at end of preheader, 
+        //          cause we may insert inst. after the terminator of that BB, and may cause such 
+        //          inst. to be a dead code which won't ever be executed.)
+        //          While locating PreHeader, we also check following:
+        //          2.1 If PreHeader is inside another loop L2, try find a PDom node N satisfied following:
+        //            * Init: pd = IPDom(PreHeader)
+        //            * keep evaluate {pd = IPDom(pd)} will eventually let pd become node N
+        //            * N is inside the same loop L2. 
+        //            If N is found, isnert lower. Otherwise skip handle this loop
+        //          2.2 If PreHeader isn't inside any loop, try find a PDom node pd satisfied following:
+        //            * Init: pd = IPDom(PreHeader)
+        //            * keep evaluate {pd = IPDom(pd)} when pd is in any loop
+        //        * If we cannot locate the PreHeader of ML, simply skip this loop.
+        //        * No matter the PreHeader is located or not, insert ML into MLoopSet.
+        //        * If ML is inside MLoopSet, means this is a ML we have already try to guarded it by 
+        //          pri.raise, pri.lower before, goto 3. for other processing.
+        //    3. If cond branch is inside loop, try find a PDom inside the same loop.
+        //          If founded, insert pri.raise/lower. Else skip the branch
+        //          We also need to ensure that PDom->getBlock() won't be MBB itself.
+        */
         /* clang-format on */
 
         if (MachineLoop *ML = MLI->getLoopFor(&MBB)) {
@@ -193,15 +193,20 @@ bool RISCVFSAInsertPri::runOnMachineFunction(MachineFunction &MF) {
             }
           }
 
-          // 3. If cond branch is inside loop, insert pri.raise iff IPDom is
-          // inside same loop
-          if (ML == MLI->getLoopFor(PDRBB)) {
+          // 3. If cond branch is inside loop, try find a PDom inside the same loop
+          // If founded, insert pri.raise/lower. Else skip the branch
+          // We also need to ensure that PDom->getBlock() won't be MBB itself.
+          do {
+            PDRBB = PDomNode->getBlock();
+            PDomNode = PDomNode->getIDom();
+          }while (PDomNode && ML != MLI->getLoopFor(PDRBB));
+
+          if (PDRBB != &MBB) {
             llvm::dbgs() << "Inserting pri raise before branch instruction\n";
             BuildMI(MBB, MI, MI.getDebugLoc(), TII->get(RISCV::FSA_PRI_RAISE));
             goto InsertLowerInst;
           } else {
-            llvm::dbgs() << "IPDom of branch is not in the same loop, skip "
-                            "insertion\n\n";
+            llvm::dbgs() << "Cannot find a suitable PDom of branch for insertion, skip the branch inside loop\n\n";
             continue;
           }
         }
