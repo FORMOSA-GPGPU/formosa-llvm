@@ -22,6 +22,25 @@ def FSA_PRI_RESET : XFormosaPri<0b0000001, 0b000, "fsa.pri.reset">, Sched<[]>{
     let rd = 0;
 }
 
+def FSA_PRI_BASE : XFormosaPri<0b0000000, 0b010, "fsa.pri.base">, Sched<[]>{
+    let rs1 = 0;
+    let rs2 = 0;
+    let rd = 0;
+}
+
+let Predicates = [HasVendorXFormosaPri, IsRV64],
+    hasSideEffects = 1, mayLoad = 0, mayStore = 0 in
+class XFormosaPriI<bits<3> funct3, string opcodestr>
+    : RVInstI<funct3, OPC_CUSTOM_1, (outs), (ins uimm6:$imm), opcodestr, "$imm">;
+
+def FSA_PRI_SET : XFormosaPriI<0b010, "fsa.pri.set">, Sched<[]>{
+    bits<6> imm;
+    let rs1 = 0;
+    let rd = 0;
+    let Inst{31-26} = 0;
+    let Inst{25-20} = imm;  // the priority value to set
+}
+
 let Predicates = [HasVendorXFormosaBar, IsRV64],
     hasSideEffects = 1, mayLoad = 0, mayStore = 0 in
 class XFormosaBar<bits<3> funct3, string opcodestr> :
@@ -39,12 +58,17 @@ def FSA_BAR : XFormosaBar<0b001, "fsa.bar"> , Sched<[]>{
 
 // Pattern matching for FSA instructions
 
-class PatUImm6<Intrinsic intrinsic, RVInstI inst>
+class PatUImm6UImm6<Intrinsic intrinsic, RVInstI inst>
     : Pat<(intrinsic uimm6:$imm1, uimm6:$imm2),
           (inst uimm6:$imm1, uimm6:$imm2)>;
+
+class PatUImm6<Intrinsic intrinsic, RVInstI inst>
+    : Pat<(intrinsic uimm6:$imm), (inst uimm6:$imm)>;
 
 def : Pat<(int_riscv_fsa_pri_raise), (FSA_PRI_RAISE)>;
 def : Pat<(int_riscv_fsa_pri_lower), (FSA_PRI_LOWER)>;
 def : Pat<(int_riscv_fsa_pri_reset), (FSA_PRI_RESET)>;
+def : Pat<(int_riscv_fsa_pri_base), (FSA_PRI_BASE)>;
 
-def : PatUImm6<int_riscv_fsa_barrier, FSA_BAR>;
+def : PatUImm6UImm6<int_riscv_fsa_barrier, FSA_BAR>;
+def : PatUImm6<int_riscv_fsa_pri_set, FSA_PRI_SET>;

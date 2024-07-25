@@ -144,6 +144,8 @@ let Features = "xformosapri,64bit" in {
 def fsa_pri_reset : RISCVBuiltin<"void()">;
 def fsa_pri_raise : RISCVBuiltin<"void()">;
 def fsa_pri_lower : RISCVBuiltin<"void()">;
+def fsa_pri_base  : RISCVBuiltin<"void()">;
+def fsa_pri_set   : RISCVBuiltin<"void(uint64_t)">;
 } // Features = "xformosapri"
 
 //===----------------------------------------------------------------------===//
