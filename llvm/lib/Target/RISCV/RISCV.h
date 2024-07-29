@@ -110,6 +110,7 @@ FunctionPass *createRISCVFSAPDomLevelBasedPriorityPass();
 void initializeRISCVFSAPDomLevelBasedPriorityPass(PassRegistry &);
 
 FunctionPass *createRISCVRISCVFSAInsertPriPass();
+FunctionPass *createRISCVFSAInsertPriPass();
 void initializeRISCVFSAInsertPriPass(PassRegistry &);
 } // namespace llvm
 

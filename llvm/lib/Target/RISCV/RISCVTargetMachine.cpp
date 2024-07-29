@@ -594,7 +594,7 @@ void RISCVPassConfig::addPreEmitPass2() {
   }
   
   // Add pass for XFormosaBar
-  addPass(createRISCVRISCVFSAInsertPriPass());
+  addPass(createRISCVFSAInsertPriPass());
 
 }
 

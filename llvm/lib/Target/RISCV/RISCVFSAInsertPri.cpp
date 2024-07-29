@@ -235,6 +235,6 @@ bool RISCVFSAInsertPri::runOnMachineFunction(MachineFunction &MF) {
   return MadeChange;
 }
 
-FunctionPass *llvm::createRISCVRISCVFSAInsertPriPass() {
+FunctionPass *llvm::createRISCVFSAInsertPriPass() {
   return new RISCVFSAInsertPri();
 }
