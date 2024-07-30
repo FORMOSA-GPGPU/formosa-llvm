@@ -92,7 +92,7 @@ bool RISCVFSAPDomLvBasedPriority::runOnMachineFunction(MachineFunction &MF) {
         LLVM_DEBUG(dbgs() << "Cannot find IPDOM for current machine basic block " << MBB.getName() << "\n";);
       }
       int PDomLv = PDomNode->getLevel();
-      if(PDomLv + base_priority > 63){ // 6bits signed int for priority, range in: -64 <= pri <= 63
+      if(PDomLv + base_priority > 31){ // 6bits signed int for priority, range in: -32 <= pri <= 31
         dbgs() << "priority overflow in function " << MF.getName() << ", perhaps the function has deeply nested branches?\n";
         LLVM_DEBUG(
           dbgs() << "Checkout MBB " << MBB.getName() << "\n";
