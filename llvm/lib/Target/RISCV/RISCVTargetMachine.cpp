@@ -149,6 +149,7 @@ extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeRISCVTarget() {
   initializeRISCVFSAInsertFunctPriPass(*PR);
   initializeRISCVFSARemoveRedundantPriPass(*PR);
   initializeRISCVFSAInsertMinPCPriPass(*PR);
+  initializeRISCVFSAPDomLvBasedPriorityPass(*PR);
 }
 
 static StringRef computeDataLayout(const Triple &TT,
@@ -577,6 +578,7 @@ void RISCVPassConfig::addPreEmitPass2() {
       report_fatal_error("MinPC pass requires XFormosaPri extension");
     addPass(createRISCVFSAInsertMinPCPriPass());
   }
+  addPass(createRISCVFSAPDomLvBasedPriorityPass());
 }
 
 void RISCVPassConfig::addMachineSSAOptimization() {
