@@ -137,6 +137,22 @@ def sm3p0 : RISCVBuiltin<"unsigned int(unsigned int)">;
 def sm3p1 : RISCVBuiltin<"unsigned int(unsigned int)">;
 } // Features = "zksh"
 
+//===----------------------------------------------------------------------===//
+// Xformosapri extension.
+//===----------------------------------------------------------------------===//
+let Features = "xformosapri,64bit" in {
+def fsa_pri_reset : RISCVBuiltin<"void()">;
+def fsa_pri_raise : RISCVBuiltin<"void()">;
+def fsa_pri_lower : RISCVBuiltin<"void()">;
+} // Features = "xformosapri"
+
+//===----------------------------------------------------------------------===//
+// Xformosabar extension.
+//===----------------------------------------------------------------------===//
+let Features = "xformosabar,64bit" in {
+def fsa_barrier : RISCVBuiltin<"void(uint64_t, uint64_t)">;
+} // Features = "xformosabar"
+
 } // Attributes = [Const, NoThrow]
 
 //===----------------------------------------------------------------------===//

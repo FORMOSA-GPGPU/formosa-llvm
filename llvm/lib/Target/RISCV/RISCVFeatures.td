@@ -1272,16 +1272,16 @@ def HasVendorXwchc
 // Formosa Extensions
 
 def FeatureVendorXFormosaPri
-    : SubtargetFeature<"xformosapri", "HasVendorXFormosaPri", "true",
-                       "'XFormosaPri' (Formosa Priority Instructions)">;
+    : RISCVExtension<"xformosapri", 1, 0,
+                     "'XFormosaPri' (Formosa Priority Instructions)">;
 def HasVendorXFormosaPri
     : Predicate<"Subtarget->hasVendorXFormosaPri()">,
       AssemblerPredicate<(all_of FeatureVendorXFormosaPri),
                          "'XFormosaPri' (Formosa Priority Instructions)">;
 
 def FeatureVendorXFormosaBar
-    : SubtargetFeature<"xformosabar", "HasVendorXFormosaBar", "true",
-                       "'XFormosaBar' (Formosa Barrier Instructions)">;
+    : RISCVExtension<"xformosabar", 1, 0,
+                     "'XFormosaBar' (Formosa Barrier Instructions)">;
 def HasVendorXFormosaBar
     : Predicate<"Subtarget->hasVendorXFormosaBar()">,
       AssemblerPredicate<(all_of FeatureVendorXFormosaBar),
