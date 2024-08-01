@@ -11,8 +11,6 @@
 #include <iterator>
 using namespace llvm;
 #define DEBUG_TYPE "RISCVFSAPDomLvBasedPriority"
-#define FSA_HIGHEST_PRI 8
-
 
 namespace {
 class RISCVFSAPDomLvBasedPriority : public MachineFunctionPass {
@@ -29,7 +27,7 @@ public:
   bool runOnMachineFunction(MachineFunction &MF) override;
   StringRef getPassName() const override { return "RISCVFSAPDomLvBasedPriority"; }
   void getAnalysisUsage(AnalysisUsage &AU) const override {
-    AU.addRequired<MachinePostDominatorTree>();
+    AU.addRequired<MachinePostDominatorTreeWrapperPass>();
     MachineFunctionPass::getAnalysisUsage(AU);
   }
 };
@@ -42,7 +40,7 @@ INITIALIZE_PASS_BEGIN(
     RISCVFSAPDomLvBasedPriority, DEBUG_TYPE,
     "FSA handling PDom priority by inserting fsa.pri instructions based on PDom level", false,
     false)
-INITIALIZE_PASS_DEPENDENCY(MachinePostDominatorTree)
+INITIALIZE_PASS_DEPENDENCY(MachinePostDominatorTreeWrapperPass)
 INITIALIZE_PASS_END(
     RISCVFSAPDomLvBasedPriority, DEBUG_TYPE,
     "FSA handling PDom priority by inserting fsa.pri instructions based on PDom level", false,
@@ -50,7 +48,7 @@ INITIALIZE_PASS_END(
 
 void RISCVFSAPDomLvBasedPriority::initialize(MachineFunction &MF) {
   const auto &ST = MF.getSubtarget<RISCVSubtarget>();
-  MPDT = &getAnalysis<MachinePostDominatorTree>();
+  MPDT = &getAnalysis<MachinePostDominatorTreeWrapperPass>().getPostDomTree();
   TII = ST.getInstrInfo();
   TRI = ST.getRegisterInfo();
 }
