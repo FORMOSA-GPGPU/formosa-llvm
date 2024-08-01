@@ -68,11 +68,9 @@ bool RISCVFSAPDomLvBasedPriority::runOnMachineFunction(MachineFunction &MF) {
       dbgs() << "------------------------------------------------------------"
                 "\n\n\n";);
   bool MadeChange = false;
+  bool HasSetBase = false;
   initialize(MF);
   MachineFunction::iterator NextBB;
-  int base_priority = 0;
-  // TODO: get base priority
-  // RISCV::FSA_PRI_GET_BASE(&base_priority)
   for (MachineFunction::iterator BI = MF.begin(), BE = MF.end(); BI != BE;
        BI = NextBB) {
     NextBB = std::next(BI);
@@ -83,7 +81,6 @@ bool RISCVFSAPDomLvBasedPriority::runOnMachineFunction(MachineFunction &MF) {
       Next = std::next(I);
       MachineInstr &MI = *I;
       if(MI.isReturn()){
-        // TODO: Perhaps memorize the priority when enter a function then set back to that priority when leave
         BuildMI(MBB, MI, MI.getDebugLoc(), TII->get(RISCV::FSA_PRI_RESET));
       } 
 
@@ -92,14 +89,6 @@ bool RISCVFSAPDomLvBasedPriority::runOnMachineFunction(MachineFunction &MF) {
         LLVM_DEBUG(dbgs() << "Cannot find IPDOM for current machine basic block " << MBB.getName() << "\n";);
       }
       int PDomLv = PDomNode->getLevel();
-      if(PDomLv + base_priority > 31){ // 6bits signed int for priority, range in: -32 <= pri <= 31
-        dbgs() << "priority overflow in function " << MF.getName() << ", perhaps the function has deeply nested branches?\n";
-        LLVM_DEBUG(
-          dbgs() << "Checkout MBB " << MBB.getName() << "\n";
-        );
-      }
-      // TODO: set PDOM based priority
-      // RISCV::FSA_PRI_SET(PDomLv + base_priority)
     }
   }
   return MadeChange;
