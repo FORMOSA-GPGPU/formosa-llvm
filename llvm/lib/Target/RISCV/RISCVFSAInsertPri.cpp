@@ -29,8 +29,8 @@ public:
   bool runOnMachineFunction(MachineFunction &MF) override;
   StringRef getPassName() const override { return "RISCVFSAInsertPri"; }
   void getAnalysisUsage(AnalysisUsage &AU) const override {
-    AU.addRequired<MachinePostDominatorTree>();
-    AU.addRequired<MachineLoopInfo>();
+    AU.addRequired<MachinePostDominatorTreeWrapperPass>();
+    AU.addRequired<MachineLoopInfoWrapperPass>();
     MachineFunctionPass::getAnalysisUsage(AU);
   }
 };
@@ -43,8 +43,8 @@ INITIALIZE_PASS_BEGIN(
     RISCVFSAInsertPri, DEBUG_TYPE,
     "FSA update branch instructions by inserting fsa.pri instructions", false,
     false)
-INITIALIZE_PASS_DEPENDENCY(MachinePostDominatorTree)
-INITIALIZE_PASS_DEPENDENCY(MachineLoopInfo)
+INITIALIZE_PASS_DEPENDENCY(MachinePostDominatorTreeWrapperPass)
+INITIALIZE_PASS_DEPENDENCY(MachineLoopInfoWrapperPass)
 INITIALIZE_PASS_END(
     RISCVFSAInsertPri, DEBUG_TYPE,
     "FSA update branch instructions by inserting fsa.pri instructions", false,
@@ -52,8 +52,8 @@ INITIALIZE_PASS_END(
 
 void RISCVFSAInsertPri::initialize(MachineFunction &MF) {
   const auto &ST = MF.getSubtarget<RISCVSubtarget>();
-  MPDT = &getAnalysis<MachinePostDominatorTree>();
-  MLI = &getAnalysis<MachineLoopInfo>();
+  MPDT = &getAnalysis<MachinePostDominatorTreeWrapperPass>().getPostDomTree();
+  MLI = &getAnalysis<MachineLoopInfoWrapperPass>().getLI();
   TII = ST.getInstrInfo();
   TRI = ST.getRegisterInfo();
 }
