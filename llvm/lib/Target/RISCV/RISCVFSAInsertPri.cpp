@@ -77,7 +77,6 @@ bool RISCVFSAInsertPri::runOnMachineFunction(MachineFunction &MF) {
       BuildMI(MBB, MBB.begin(), MBB.findDebugLoc(MBB.begin()),
               TII->get(RISCV::FSA_PRI_BASE));
       HasPriBase = true;
-      MadeChange = true;
     }
   }
 
