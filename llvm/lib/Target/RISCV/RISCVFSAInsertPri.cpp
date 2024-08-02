@@ -62,7 +62,7 @@ bool RISCVFSAInsertPri::runOnMachineFunction(MachineFunction &MF) {
   }
   bool HasPriBase = false;
   for (MachineBasicBlock &MBB : MF) {
-    // set the priority based on the occurrence of baisc blocks, basic blocks
+    // set the priority based on the occurrence of basic blocks, basic blocks
     // with lower PC value have higher priority
     // Insert fsa.pri.set <priority>
     LLVM_DEBUG(dbgs() << "    BB priority: " << NumMBBs - MBB.getNumber()
