@@ -93,7 +93,7 @@ bool RISCVFSAPDomLvBasedPriority::runOnMachineFunction(MachineFunction &MF) {
       continue;
     }
 
-    // set the priority based on the level of IPDom
+    // set the priority based on the level of IDom
     LLVM_DEBUG(dbgs() << "BB " << MBB.getName()
                       << " priority: " << PDomNode->getLevel() << "\n");
     BuildMI(MBB, MBB.begin(), MBB.findDebugLoc(MBB.begin()),
