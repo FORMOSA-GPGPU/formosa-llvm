@@ -25,7 +25,9 @@ public:
   RISCVFSAPDomLvBasedPriority() : MachineFunctionPass(ID) {}
   void initialize(MachineFunction &F);
   bool runOnMachineFunction(MachineFunction &MF) override;
-  StringRef getPassName() const override { return "RISCVFSAPDomLvBasedPriority"; }
+  StringRef getPassName() const override {
+    return "RISCVFSAPDomLvBasedPriority";
+  }
   void getAnalysisUsage(AnalysisUsage &AU) const override {
     AU.addRequired<MachinePostDominatorTreeWrapperPass>();
     MachineFunctionPass::getAnalysisUsage(AU);
@@ -36,15 +38,15 @@ public:
 
 char RISCVFSAPDomLvBasedPriority::ID = 0;
 
-INITIALIZE_PASS_BEGIN(
-    RISCVFSAPDomLvBasedPriority, DEBUG_TYPE,
-    "FSA handling PDom priority by inserting fsa.pri instructions based on PDom level", false,
-    false)
+INITIALIZE_PASS_BEGIN(RISCVFSAPDomLvBasedPriority, DEBUG_TYPE,
+                      "FSA handling PDom priority by inserting fsa.pri "
+                      "instructions based on PDom level",
+                      false, false)
 INITIALIZE_PASS_DEPENDENCY(MachinePostDominatorTreeWrapperPass)
-INITIALIZE_PASS_END(
-    RISCVFSAPDomLvBasedPriority, DEBUG_TYPE,
-    "FSA handling PDom priority by inserting fsa.pri instructions based on PDom level", false,
-    false)
+INITIALIZE_PASS_END(RISCVFSAPDomLvBasedPriority, DEBUG_TYPE,
+                    "FSA handling PDom priority by inserting fsa.pri "
+                    "instructions based on PDom level",
+                    false, false)
 
 void RISCVFSAPDomLvBasedPriority::initialize(MachineFunction &MF) {
   const auto &ST = MF.getSubtarget<RISCVSubtarget>();
@@ -61,34 +63,49 @@ bool RISCVFSAPDomLvBasedPriority::runOnMachineFunction(MachineFunction &MF) {
   LLVM_DEBUG(
       dbgs() << "------------------------------------------------------------"
                 "\n";
-      dbgs() << "Running RISCVFSAPDomLvBasedPriority on function: " << MF.getName()
-             << "\n";
+      dbgs() << "Running RISCVFSAPDomLvBasedPriority on function: "
+             << MF.getName() << "\n";
       dbgs() << "------------------------------------------------------------"
                 "\n\n\n";);
   bool MadeChange = false;
-  bool HasSetBase = false;
   initialize(MF);
   MachineFunction::iterator NextBB;
-  for (MachineFunction::iterator BI = MF.begin(), BE = MF.end(); BI != BE;
-       BI = NextBB) {
-    NextBB = std::next(BI);
-    MachineBasicBlock &MBB = *BI;
-    MachineBasicBlock::iterator I, Next;
 
-    for (I = MBB.getFirstTerminator(); I != MBB.end(); I = Next) {
-      Next = std::next(I);
-      MachineInstr &MI = *I;
-      if(MI.isReturn()){
-        BuildMI(MBB, MI, MI.getDebugLoc(), TII->get(RISCV::FSA_PRI_RESET));
-      } 
-
-      DomTreeNodeBase<MachineBasicBlock> *PDomNode = MPDT->getNode(&MBB);
-      if(!PDomNode){
-        LLVM_DEBUG(dbgs() << "Cannot find IPDOM for current machine basic block " << MBB.getName() << "\n";);
-      }
-      int PDomLv = PDomNode->getLevel();
-    }
+  unsigned int NumMBBs = MF.getNumBlockIDs();
+  LLVM_DEBUG(dbgs() << "Number of MBBs: " << NumMBBs << "\n");
+  if (NumMBBs > 63) {
+    report_fatal_error("Number of basic blocks exceeds 63, cannot insert "
+                       "fsa.pri.set instructions");
   }
+  for (MachineBasicBlock &MBB : MF) {
+    for (MachineBasicBlock::iterator I = MBB.getFirstTerminator();
+         I != MBB.end(); I = std::next(I)) {
+      MachineInstr &MI = *I;
+      if (MI.isReturn()) {
+        BuildMI(MBB, MI, MI.getDebugLoc(), TII->get(RISCV::FSA_PRI_RESET));
+      }
+    }
+
+    DomTreeNodeBase<MachineBasicBlock> *PDomNode = MPDT->getNode(&MBB);
+    if (!PDomNode) {
+      LLVM_DEBUG(dbgs() << "Cannot find IPDOM for current machine basic block "
+                        << MBB.getName() << "\n";);
+      continue;
+    }
+
+    // set the priority based on the level of IPDom
+    LLVM_DEBUG(dbgs() << "BB " << MBB.getName()
+                      << " priority: " << PDomNode->getLevel() << "\n");
+    BuildMI(MBB, MBB.begin(), MBB.findDebugLoc(MBB.begin()),
+            TII->get(RISCV::FSA_PRI_SET))
+        .addImm(PDomNode->getLevel());
+    MadeChange = true;
+  }
+
+  // insert fsa.pri.base at the beginning of the function
+  MachineBasicBlock &MBB = MF.front();
+  BuildMI(MBB, MBB.begin(), MBB.findDebugLoc(MBB.begin()),
+          TII->get(RISCV::FSA_PRI_BASE));
   return MadeChange;
 }
 
