@@ -69,14 +69,7 @@ bool RISCVFSAPDomLvBasedPriority::runOnMachineFunction(MachineFunction &MF) {
                 "\n\n\n";);
   bool MadeChange = false;
   initialize(MF);
-  MachineFunction::iterator NextBB;
 
-  unsigned int NumMBBs = MF.getNumBlockIDs();
-  LLVM_DEBUG(dbgs() << "Number of MBBs: " << NumMBBs << "\n");
-  if (NumMBBs > 63) {
-    report_fatal_error("Number of basic blocks exceeds 63, cannot insert "
-                       "fsa.pri.set instructions");
-  }
   for (MachineBasicBlock &MBB : MF) {
     for (MachineBasicBlock::iterator I = MBB.getFirstTerminator();
          I != MBB.end(); I = std::next(I)) {
@@ -96,9 +89,15 @@ bool RISCVFSAPDomLvBasedPriority::runOnMachineFunction(MachineFunction &MF) {
     // set the priority based on the level of IDom
     LLVM_DEBUG(dbgs() << "BB " << MBB.getName()
                       << " priority: " << PDomNode->getLevel() << "\n");
+    int PDomLv = PDomNode->getLevel();
+    if(PDomLv > 63){
+      report_fatal_error("Number of PDom level exceeds 63, cannot insert "
+                        "fsa.pri.set instructions");
+    }
+
     BuildMI(MBB, MBB.begin(), MBB.findDebugLoc(MBB.begin()),
             TII->get(RISCV::FSA_PRI_SET))
-        .addImm(PDomNode->getLevel());
+        .addImm(PDomLv);
     MadeChange = true;
   }
 
