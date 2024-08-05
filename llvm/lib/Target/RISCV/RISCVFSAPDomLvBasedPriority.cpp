@@ -19,6 +19,7 @@ private:
   const RISCVRegisterInfo *TRI;
   const RISCVInstrInfo *TII;
   MachinePostDominatorTree *MPDT;
+  MachineDominatorTree *MDT;
 
 public:
   static char ID;
@@ -30,6 +31,7 @@ public:
   }
   void getAnalysisUsage(AnalysisUsage &AU) const override {
     AU.addRequired<MachinePostDominatorTreeWrapperPass>();
+    AU.addRequired<MachineDominatorTreeWrapperPass>();
     MachineFunctionPass::getAnalysisUsage(AU);
   }
 };
@@ -51,6 +53,7 @@ INITIALIZE_PASS_END(RISCVFSAPDomLvBasedPriority, DEBUG_TYPE,
 void RISCVFSAPDomLvBasedPriority::initialize(MachineFunction &MF) {
   const auto &ST = MF.getSubtarget<RISCVSubtarget>();
   MPDT = &getAnalysis<MachinePostDominatorTreeWrapperPass>().getPostDomTree();
+  MDT = &getAnalysis<MachineDominatorTreeWrapperPass>().getDomTree();
   TII = ST.getInstrInfo();
   TRI = ST.getRegisterInfo();
 }
@@ -80,19 +83,34 @@ bool RISCVFSAPDomLvBasedPriority::runOnMachineFunction(MachineFunction &MF) {
     }
 
     DomTreeNodeBase<MachineBasicBlock> *PDomNode = MPDT->getNode(&MBB);
+    DomTreeNodeBase<MachineBasicBlock> *DomNode = MDT->getNode(&MBB);
+
     if (!PDomNode) {
       LLVM_DEBUG(dbgs() << "Cannot find IPDOM for current machine basic block "
                         << MBB.getName() << "\n";);
       continue;
+    } else if (DomNode && DomNode->getIDom()) {
+      MachineBasicBlock *IDomBB = DomNode->getIDom()->getBlock();
+      DomTreeNodeBase<MachineBasicBlock> *IDomBBNode = MPDT->getNode(IDomBB);
+      if (IDomBBNode && IDomBBNode->getLevel() == PDomNode->getLevel()) {
+        // Let CPNLv stands for "corresponding PDom node level in PDom tree"
+        // If current BB's CPNLv is as same as its IDom BB's CPNLv, skip
+        // insertion of current BB
+        LLVM_DEBUG(dbgs() << "BB " << MBB.getName()
+                          << "has the same priority of it's IDom BB: "
+                          << MBB.getName() << "with level"
+                          << PDomNode->getLevel() << ", skip insertion\n");
+        continue;
+      }
     }
 
     // set the priority based on the level of IDom
     LLVM_DEBUG(dbgs() << "BB " << MBB.getName()
                       << " priority: " << PDomNode->getLevel() << "\n");
     int PDomLv = PDomNode->getLevel();
-    if(PDomLv > 63){
+    if (PDomLv > 63) {
       report_fatal_error("Number of PDom level exceeds 63, cannot insert "
-                        "fsa.pri.set instructions");
+                         "fsa.pri.set instructions");
     }
 
     BuildMI(MBB, MBB.begin(), MBB.findDebugLoc(MBB.begin()),
