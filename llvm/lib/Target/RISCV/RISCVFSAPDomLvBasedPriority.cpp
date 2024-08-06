@@ -19,7 +19,6 @@ private:
   const RISCVRegisterInfo *TRI;
   const RISCVInstrInfo *TII;
   MachinePostDominatorTree *MPDT;
-  MachineDominatorTree *MDT;
 
 public:
   static char ID;
@@ -31,7 +30,6 @@ public:
   }
   void getAnalysisUsage(AnalysisUsage &AU) const override {
     AU.addRequired<MachinePostDominatorTreeWrapperPass>();
-    AU.addRequired<MachineDominatorTreeWrapperPass>();
     MachineFunctionPass::getAnalysisUsage(AU);
   }
 };
@@ -53,7 +51,6 @@ INITIALIZE_PASS_END(RISCVFSAPDomLvBasedPriority, DEBUG_TYPE,
 void RISCVFSAPDomLvBasedPriority::initialize(MachineFunction &MF) {
   const auto &ST = MF.getSubtarget<RISCVSubtarget>();
   MPDT = &getAnalysis<MachinePostDominatorTreeWrapperPass>().getPostDomTree();
-  MDT = &getAnalysis<MachineDominatorTreeWrapperPass>().getDomTree();
   TII = ST.getInstrInfo();
   TRI = ST.getRegisterInfo();
 }
@@ -83,31 +80,43 @@ bool RISCVFSAPDomLvBasedPriority::runOnMachineFunction(MachineFunction &MF) {
     }
 
     DomTreeNodeBase<MachineBasicBlock> *PDomNode = MPDT->getNode(&MBB);
-    DomTreeNodeBase<MachineBasicBlock> *DomNode = MDT->getNode(&MBB);
-
+    bool IsRedundantInsertion = true;
     if (!PDomNode) {
       LLVM_DEBUG(dbgs() << "Cannot find IPDOM for current machine basic block "
                         << MBB.getName() << "\n";);
       continue;
-    } else if (DomNode && DomNode->getIDom()) {
-      MachineBasicBlock *IDomBB = DomNode->getIDom()->getBlock();
-      DomTreeNodeBase<MachineBasicBlock> *IDomBBNode = MPDT->getNode(IDomBB);
-      if (IDomBBNode && IDomBBNode->getLevel() == PDomNode->getLevel()) {
-        // Let CPNLv stands for "corresponding PDom node level in PDom tree"
-        // If current BB's CPNLv is as same as its IDom BB's CPNLv, skip
-        // insertion of current BB
-        LLVM_DEBUG(dbgs() << "BB " << MBB.getName()
-                          << "has the same priority of it's IDom BB: "
-                          << MBB.getName() << "with level"
-                          << PDomNode->getLevel() << ", skip insertion\n");
-        continue;
+    }
+
+    unsigned int PDomLv = PDomNode->getLevel();
+
+    // "CPNLv" stands for "corresponding PDom node level in the PDom tree."
+    // If the CPNLv of the current MBB is the same as that of all its
+    // predecessors, the insertion of the current MBB is redundant and
+    // should be skipped. The following code performs this check.
+    for (MachineBasicBlock *Pred : predecessors(&MBB)) {
+      DomTreeNodeBase<MachineBasicBlock> *PredPDomNode = MPDT->getNode(Pred);
+      if(!PredPDomNode){
+        LLVM_DEBUG(dbgs() << "Cannot decide all pred's value for current machine basic block "
+                          << MBB.getName() << ", abort redundant insertion check for current MBB\n";);
+        IsRedundantInsertion = false;
+        break;
       }
+      if(PredPDomNode->getLevel() != PDomLv){
+        IsRedundantInsertion = false;
+        break;
+      }
+    }
+
+    if(IsRedundantInsertion){
+      LLVM_DEBUG(dbgs() << "BB " << MBB.getName()
+                        << "has the same priority of all it's predecessors: "
+                        << "with level" << PDomLv << ", skip insertion\n");
+      continue;
     }
 
     // set the priority based on the level of IDom
     LLVM_DEBUG(dbgs() << "BB " << MBB.getName()
-                      << " priority: " << PDomNode->getLevel() << "\n");
-    int PDomLv = PDomNode->getLevel();
+                      << " priority: " << PDomLv << "\n");
     if (PDomLv > 63) {
       report_fatal_error("Number of PDom level exceeds 63, cannot insert "
                          "fsa.pri.set instructions");
