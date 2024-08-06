@@ -80,7 +80,15 @@ bool RISCVFSAPDomLvBasedPriority::runOnMachineFunction(MachineFunction &MF) {
     }
 
     DomTreeNodeBase<MachineBasicBlock> *PDomNode = MPDT->getNode(&MBB);
-    bool IsRedundantInsertion = true;
+
+    // Skip insertion of the `pri.set` instruction ONLY if it has already been
+    // inserted previously (indicated by MadeChange being true). This is
+    // especially for the entry block, which has no predecessors and therefore
+    // does not need a redundant check. To ensure that a `pri.set` instruction
+    // is inserted in the entry block, we initialize "IsRedundantInsertion" to
+    // false (the value of MadeChange) at the beginning of processing for each
+    // block.
+    bool IsRedundantInsertion = MadeChange;
     if (!PDomNode) {
       LLVM_DEBUG(
           dbgs() << "Cannot find PDom node for current machine basic block "
@@ -136,6 +144,7 @@ bool RISCVFSAPDomLvBasedPriority::runOnMachineFunction(MachineFunction &MF) {
   MachineBasicBlock &MBB = MF.front();
   BuildMI(MBB, MBB.begin(), MBB.findDebugLoc(MBB.begin()),
           TII->get(RISCV::FSA_PRI_BASE));
+  MadeChange = true;
   return MadeChange;
 }
 
