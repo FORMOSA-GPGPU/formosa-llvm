@@ -82,8 +82,9 @@ bool RISCVFSAPDomLvBasedPriority::runOnMachineFunction(MachineFunction &MF) {
     DomTreeNodeBase<MachineBasicBlock> *PDomNode = MPDT->getNode(&MBB);
     bool IsRedundantInsertion = true;
     if (!PDomNode) {
-      LLVM_DEBUG(dbgs() << "Cannot find IPDOM for current machine basic block "
-                        << MBB.getName() << "\n";);
+      LLVM_DEBUG(
+          dbgs() << "Cannot find PDom node for current machine basic block "
+                 << MBB.getName() << "\n";);
       continue;
     }
 
@@ -95,19 +96,22 @@ bool RISCVFSAPDomLvBasedPriority::runOnMachineFunction(MachineFunction &MF) {
     // should be skipped. The following code performs this check.
     for (MachineBasicBlock *Pred : predecessors(&MBB)) {
       DomTreeNodeBase<MachineBasicBlock> *PredPDomNode = MPDT->getNode(Pred);
-      if(!PredPDomNode){
-        LLVM_DEBUG(dbgs() << "Cannot decide all pred's value for current machine basic block "
-                          << MBB.getName() << ", abort redundant insertion check for current MBB\n";);
+      if (!PredPDomNode) {
+        LLVM_DEBUG(
+            dbgs() << "Cannot decide all pred's value for current machine "
+                      "basic block "
+                   << MBB.getName()
+                   << ", abort redundant insertion check for current MBB\n";);
         IsRedundantInsertion = false;
         break;
       }
-      if(PredPDomNode->getLevel() != PDomLv){
+      if (PredPDomNode->getLevel() != PDomLv) {
         IsRedundantInsertion = false;
         break;
       }
     }
 
-    if(IsRedundantInsertion){
+    if (IsRedundantInsertion) {
       LLVM_DEBUG(dbgs() << "BB " << MBB.getName()
                         << "has the same priority of all it's predecessors: "
                         << "with level" << PDomLv << ", skip insertion\n");
@@ -115,8 +119,8 @@ bool RISCVFSAPDomLvBasedPriority::runOnMachineFunction(MachineFunction &MF) {
     }
 
     // set the priority based on the level of IDom
-    LLVM_DEBUG(dbgs() << "BB " << MBB.getName()
-                      << " priority: " << PDomLv << "\n");
+    LLVM_DEBUG(dbgs() << "BB " << MBB.getName() << " priority: " << PDomLv
+                      << "\n");
     if (PDomLv > 63) {
       report_fatal_error("Number of PDom level exceeds 63, cannot insert "
                          "fsa.pri.set instructions");
