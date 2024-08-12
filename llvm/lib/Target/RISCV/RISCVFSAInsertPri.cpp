@@ -5,6 +5,7 @@
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/Passes.h"
+#include "llvm/InitializePasses.h"
 
 using namespace llvm;
 #define DEBUG_TYPE "RISCVFSAInsertPri"
@@ -54,6 +55,16 @@ bool RISCVFSAInsertPri::runOnMachineFunction(MachineFunction &MF) {
   LLVM_DEBUG(dbgs() << "Pass RISCVFSAInsertPri: " << MF.getName() << "\n");
   initialize(MF);
   bool MadeChange = false;
+
+  if (!MF.getProperties().hasProperty(
+          MachineFunctionProperties::Property::Divergence)) {
+    LLVM_DEBUG(dbgs() << "Function has no divergence, skip\n");
+    return false;
+  }
+  LLVM_DEBUG(dbgs() << "Function: <" << MF.getName()
+                    << "> has divergence, perform "
+                       "MinPC optimization\n");
+
   unsigned int NumMBBs = MF.getNumBlockIDs();
   LLVM_DEBUG(dbgs() << "Number of MBBs: " << NumMBBs << "\n");
   if (NumMBBs > 63) {
