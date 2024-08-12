@@ -146,6 +146,19 @@ def fsa_pri_raise : RISCVBuiltin<"void()">;
 def fsa_pri_lower : RISCVBuiltin<"void()">;
 def fsa_pri_base  : RISCVBuiltin<"void()">;
 def fsa_pri_set   : RISCVBuiltin<"void(uint64_t)">;
+
+//===----------------------------------------------------------------------===//
+// Zicsr extension for Formosa architecture.
+//===----------------------------------------------------------------------===//
+multiclass RISCVFSACSRBuiltin<string prefix> {
+  def _x : RISCVBuiltin<"uint64_t()">;
+  def _y : RISCVBuiltin<"uint64_t()">;
+  def _z : RISCVBuiltin<"uint64_t()">;
+}
+
+defm fsa_local_id : RISCVFSACSRBuiltin<"fsa_local_id">;
+def fsa_thread_id : RISCVBuiltin<"uint64_t()">;
+def fsa_thread_status : RISCVBuiltin<"uint64_t()">;
 } // Features = "xformosapri"
 
 //===----------------------------------------------------------------------===//

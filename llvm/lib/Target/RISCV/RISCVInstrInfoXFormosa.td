@@ -72,3 +72,9 @@ def : Pat<(int_riscv_fsa_pri_base), (FSA_PRI_BASE)>;
 
 def : PatUImm6UImm6<int_riscv_fsa_barrier, FSA_BAR>;
 def : PatUImm6<int_riscv_fsa_pri_set, FSA_PRI_SET>;
+
+def : Pat<(i64 (int_riscv_fsa_local_id_x)),    (CSRRS FSA_XCLLX.Encoding,    (XLenVT X0))>;
+def : Pat<(i64 (int_riscv_fsa_local_id_y)),    (CSRRS FSA_XCLLY.Encoding,    (XLenVT X0))>;
+def : Pat<(i64 (int_riscv_fsa_local_id_z)),    (CSRRS FSA_XCLLZ.Encoding,    (XLenVT X0))>;
+def : Pat<(i64 (int_riscv_fsa_thread_id)),     (CSRRS FSA_XTID.Encoding,     (XLenVT X0))>;
+def : Pat<(i64 (int_riscv_fsa_thread_status)), (CSRRS FSA_XTSTATUS.Encoding, (XLenVT X0))>;

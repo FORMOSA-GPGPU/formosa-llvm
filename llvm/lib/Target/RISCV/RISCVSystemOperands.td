@@ -455,3 +455,15 @@ def : SysReg<"mnscratch", 0x740>;
 def : SysReg<"mnepc", 0x741>;
 def : SysReg<"mncause", 0x742>;
 def : SysReg<"mnstatus", 0x744>;
+
+//===-----------------------------------------------
+// Formosa CSRs
+//===-----------------------------------------------
+multiclass RISCVFSACSR<string mnemonic, int base> {
+  def X : SysReg<!strconcat(mnemonic, "x"), !add(base, 0)>;
+  def Y : SysReg<!strconcat(mnemonic, "y"), !add(base, 1)>;
+  def Z : SysReg<!strconcat(mnemonic, "z"), !add(base, 2)>;
+}
+def  FSA_XTID     : SysReg<"xtid", 0xFE0>;
+def  FSA_XTSTATUS : SysReg<"xtstatus", 0xFE1>;
+defm FSA_XCLL     : RISCVFSACSR<"xcll", 0xFE2>;

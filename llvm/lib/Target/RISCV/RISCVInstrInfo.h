@@ -302,6 +302,8 @@ public:
       llvm_unreachable("Unexpected register class.");
     }
   }
+  // Instruction uniformity
+  InstructionUniformity getInstructionUniformity(const MachineInstr &MI) const override final;
 
 protected:
   const RISCVSubtarget &STI;

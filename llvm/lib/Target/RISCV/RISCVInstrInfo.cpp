@@ -28,6 +28,7 @@
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/MachineTraceMetrics.h"
 #include "llvm/CodeGen/RegisterScavenging.h"
+#include "llvm/CodeGen/TargetInstrInfo.h"
 #include "llvm/CodeGen/StackMaps.h"
 #include "llvm/IR/DebugInfoMetadata.h"
 #include "llvm/IR/Module.h"
@@ -43,6 +44,8 @@ using namespace llvm;
 #define GET_INSTRINFO_CTOR_DTOR
 #define GET_INSTRINFO_NAMED_OPS
 #include "RISCVGenInstrInfo.inc"
+
+#define DEBUG_TYPE "riscv-instr-info"
 
 static cl::opt<bool> PreferWholeRegisterMove(
     "riscv-prefer-whole-register-move", cl::init(false), cl::Hidden,
@@ -3995,4 +3998,24 @@ unsigned RISCV::getRVVMCOpcode(unsigned RVVPseudoOpcode) {
   if (!RVV)
     return 0;
   return RVV->BaseInstr;
+}
+
+InstructionUniformity
+RISCVInstrInfo::getInstructionUniformity(const MachineInstr &MI) const {
+  unsigned Opcode = MI.getOpcode();
+
+  // Read from the thread level CSRs are never uniform.
+  if (Opcode == RISCV::CSRRS) {
+    unsigned FSAThreadLevelCSRStart =
+        RISCVSysReg::lookupSysRegByName("xtid")->Encoding;
+    unsigned FSAThreadLevelCSREnd =
+        RISCVSysReg::lookupSysRegByName("xcllz")->Encoding;
+    unsigned CSRAddr = MI.getOperand(1).getImm();
+    if (CSRAddr >= FSAThreadLevelCSRStart && CSRAddr <= FSAThreadLevelCSREnd) {
+      LLVM_DEBUG(dbgs() << "Thread level CSR, returning NeverUniform\n");
+      return InstructionUniformity::NeverUniform;
+    }
+  }
+
+  return InstructionUniformity::Default;
 }

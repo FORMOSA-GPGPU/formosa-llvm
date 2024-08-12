@@ -38,4 +38,24 @@ let TargetPrefix = "riscv" in {
     Intrinsic<[], [llvm_i64_ty, llvm_i64_ty],
               [IntrNoMem, IntrHasSideEffects, IntrConvergent,
                IntrWillReturn, IntrNoCallback, IntrNoFree]>;
+
+  class RISCVXFormosaCSRIntrinsics :
+    Intrinsic<[llvm_i64_ty], [], [IntrNoMem, IntrNoFree]>;
+
+  multiclass RISCVXFormosaCSRIntrinsicsNamed<string IntrinsicName> {
+    def _x : ClangBuiltin<!strconcat("__builtin_riscv_fsa_", IntrinsicName, "_x")>,
+             RISCVXFormosaCSRIntrinsics;
+    def _y : ClangBuiltin<!strconcat("__builtin_riscv_fsa_", IntrinsicName, "_y")>,
+             RISCVXFormosaCSRIntrinsics;
+    def _z : ClangBuiltin<!strconcat("__builtin_riscv_fsa_", IntrinsicName, "_z")>,
+             RISCVXFormosaCSRIntrinsics;
+  }
+
+  defm int_riscv_fsa_local_id : RISCVXFormosaCSRIntrinsicsNamed<"local_id">;
+
+  def  int_riscv_fsa_thread_id : ClangBuiltin<"__builtin_riscv_fsa_thread_id">,
+    Intrinsic<[llvm_i64_ty], [], [IntrNoMem, IntrNoFree]>;
+
+  def  int_riscv_fsa_thread_status : ClangBuiltin<"__builtin_riscv_fsa_thread_status">,
+    Intrinsic<[llvm_i64_ty], [], [IntrNoMem, IntrNoFree]>;
 } // TargetPrefix = "riscv"
