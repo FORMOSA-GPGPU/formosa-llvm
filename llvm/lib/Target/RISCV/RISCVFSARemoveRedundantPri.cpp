@@ -61,7 +61,7 @@ bool RISCVFSARemoveRedundantPri::runOnMachineFunction(MachineFunction &MF) {
     for (MachineBasicBlock &MBB : MF) {
       for (MachineInstr &MI : MBB) {
         unsigned Opcode = MI.getOpcode();
-        if (Opcode >= RISCV::FSA_PRI_BASE && Opcode <= RISCV::FSA_PRI_SET) {
+        if (Opcode >= RISCV::FSA_PRI_LOWER && Opcode <= RISCV::FSA_PRI_SET) {
           WorkList.push_back(&MI);
         }
       }
