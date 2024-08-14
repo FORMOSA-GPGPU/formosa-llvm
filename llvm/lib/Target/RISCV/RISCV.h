@@ -100,8 +100,8 @@ void initializeRISCVFSADivergenceAnalysisPass(PassRegistry &);
 FunctionPass *createRISCVFSAInsertFunctPriPass();
 void initializeRISCVFSAInsertFunctPriPass(PassRegistry &);
 
-FunctionPass *createRISCVFSAInsertPriPass();
-void initializeRISCVFSAInsertPriPass(PassRegistry &);
+FunctionPass *createRISCVFSAInsertMinPCPriPass();
+void initializeRISCVFSAInsertMinPCPriPass(PassRegistry &);
 } // namespace llvm
 
 #endif

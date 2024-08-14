@@ -134,7 +134,7 @@ extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeRISCVTarget() {
   initializeRISCVPushPopOptPass(*PR);
   initializeRISCVFSADivergenceAnalysisPass(*PR);
   initializeRISCVFSAInsertFunctPriPass(*PR);
-  initializeRISCVFSAInsertPriPass(*PR);
+  initializeRISCVFSAInsertMinPCPriPass(*PR);
 }
 
 static StringRef computeDataLayout(const Triple &TT,
@@ -549,7 +549,7 @@ void RISCVPassConfig::addPreEmitPass2() {
   }
 
   // Add pass for XFormosaPri
-  addPass(createRISCVFSAInsertPriPass());
+  addPass(createRISCVFSAInsertMinPCPriPass());
 }
 
 void RISCVPassConfig::addMachineSSAOptimization() {
