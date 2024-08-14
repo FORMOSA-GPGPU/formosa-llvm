@@ -129,6 +129,7 @@ extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeRISCVTarget() {
   initializeRISCVMoveMergePass(*PR);
   initializeRISCVPushPopOptPass(*PR);
   initializeRISCVFSADivergenceAnalysisPass(*PR);
+  initializeRISCVFSAInsertFunctPriPass(*PR);
 }
 
 static StringRef computeDataLayout(const Triple &TT,
@@ -532,6 +533,7 @@ void RISCVPassConfig::addPreEmitPass2() {
   addPass(createUnpackMachineBundles([&](const MachineFunction &MF) {
     return MF.getFunction().getParent()->getModuleFlag("kcfi");
   }));
+  addPass(createRISCVFSAInsertFunctPriPass());
 }
 
 void RISCVPassConfig::addMachineSSAOptimization() {
