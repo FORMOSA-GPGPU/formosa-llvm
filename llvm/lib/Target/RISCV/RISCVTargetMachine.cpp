@@ -130,6 +130,7 @@ extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeRISCVTarget() {
   initializeRISCVPushPopOptPass(*PR);
   initializeRISCVFSADivergenceAnalysisPass(*PR);
   initializeRISCVFSAInsertFunctPriPass(*PR);
+  initializeRISCVFSARemoveRedundantPriPass(*PR);
 }
 
 static StringRef computeDataLayout(const Triple &TT,
@@ -513,6 +514,9 @@ void RISCVPassConfig::addPreEmitPass() {
     addPass(createMachineCopyPropagationPass(true));
   addPass(&BranchRelaxationPassID);
   addPass(createRISCVMakeCompressibleOptPass());
+
+  // Remove redundant PRI instructions.
+  addPass(createRISCVFSARemoveRedundantPriPass());
 }
 
 void RISCVPassConfig::addPreEmitPass2() {
