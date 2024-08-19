@@ -516,7 +516,8 @@ void RISCVPassConfig::addPreEmitPass() {
   addPass(createRISCVMakeCompressibleOptPass());
 
   // Remove redundant PRI instructions.
-  addPass(createRISCVFSARemoveRedundantPriPass());
+  if (TM->getOptLevel() != CodeGenOptLevel::None)
+    addPass(createRISCVFSARemoveRedundantPriPass());
 }
 
 void RISCVPassConfig::addPreEmitPass2() {
