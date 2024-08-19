@@ -208,7 +208,9 @@ void CodeGenFunction::EmitStmt(const Stmt *S, ArrayRef<const Attr *> Attrs) {
   case Stmt::IfStmtClass:
     CallRISCVFSAPriIntrinsic(llvm::Intrinsic::riscv_fsa_pri_raise);
     EmitIfStmt(cast<IfStmt>(*S));
-    // Do not generate riscv_fsa_pri_lower if all children has RetrunStmt
+    // Do not generate riscv_fsa_pri_lower if all children has ReturnStmt
+    // or GotoStmt. The lower instruction will be handled and inserted in the
+    // EmitReturnStmt and EmitGotoStmt.
     if (!(ChildrenContainStmtClasses(
               cast<IfStmt>(*S).getThen(),
               {Stmt::ReturnStmtClass, Stmt::GotoStmtClass}) &&
