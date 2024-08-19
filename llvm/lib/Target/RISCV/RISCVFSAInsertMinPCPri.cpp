@@ -6,6 +6,7 @@
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/Passes.h"
 #include "llvm/InitializePasses.h"
+#include "llvm/Support/CodeGen.h"
 
 using namespace llvm;
 #define DEBUG_TYPE "RISCVFSAInsertMinPCPri"
@@ -56,7 +57,10 @@ bool RISCVFSAInsertMinPCPri::runOnMachineFunction(MachineFunction &MF) {
   initialize(MF);
   bool MadeChange = false;
 
-  if (!MF.getProperties().hasProperty(
+  CodeGenOptLevel OptLevel = MF.getTarget().getOptLevel();
+
+  if (OptLevel != CodeGenOptLevel::None &&
+      !MF.getProperties().hasProperty(
           MachineFunctionProperties::Property::Divergence)) {
     LLVM_DEBUG(dbgs() << "Function has no divergence, skip\n");
     return false;
