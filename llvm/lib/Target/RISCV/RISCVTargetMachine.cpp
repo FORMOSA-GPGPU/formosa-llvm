@@ -537,7 +537,6 @@ void RISCVPassConfig::addPreEmitPass2() {
   addPass(createUnpackMachineBundles([&](const MachineFunction &MF) {
     return MF.getFunction().getParent()->getModuleFlag("kcfi");
   }));
-  addPass(createRISCVFSAInsertFunctPriPass());
 }
 
 void RISCVPassConfig::addMachineSSAOptimization() {
