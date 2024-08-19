@@ -75,12 +75,22 @@ bool RISCVFSAInsertMinPCPri::runOnMachineFunction(MachineFunction &MF) {
     // set the priority based on the occurrence of basic blocks, basic blocks
     // with lower PC value have higher priority
     // Insert fsa.pri.set <priority>
-    LLVM_DEBUG(dbgs() << "    BB priority: " << NumMBBs - MBB.getNumber()
-                      << "\n");
+    unsigned BlockPriority = NumMBBs - MBB.getNumber();
+    LLVM_DEBUG(dbgs() << "    BB priority: " << BlockPriority << "\n");
     BuildMI(MBB, MBB.begin(), MBB.findDebugLoc(MBB.begin()),
             TII->get(RISCV::FSA_PRI_SET))
-        .addImm(NumMBBs - MBB.getNumber());
+        .addImm(BlockPriority);
     MadeChange = true;
+
+    for (MachineInstr &MI : MBB) {
+      // if MI is a call node, insert fsa.pri.set after it
+      if (MI.isCall()) {
+        MachineInstr &NextMI = *std::next(MI.getIterator());
+        BuildMI(MBB, NextMI.getIterator(), NextMI.getDebugLoc(),
+                TII->get(RISCV::FSA_PRI_SET))
+            .addImm(BlockPriority);
+      }
+    }
   }
 
   return MadeChange;
