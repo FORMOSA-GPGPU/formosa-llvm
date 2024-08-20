@@ -146,12 +146,7 @@ bool RISCVFSAPDomLvBasedPriority::runOnMachineFunction(MachineFunction &MF) {
         .addImm(PDomLv);
     MadeChange = true;
   }
-
-  // insert fsa.pri.base at the beginning of the function
-  MachineBasicBlock &MBB = MF.front();
-  BuildMI(MBB, MBB.begin(), MBB.findDebugLoc(MBB.begin()),
-          TII->get(RISCV::FSA_PRI_BASE));
-  MadeChange = true;
+  
   return MadeChange;
 }
 
