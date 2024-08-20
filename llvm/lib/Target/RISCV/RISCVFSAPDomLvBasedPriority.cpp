@@ -80,14 +80,6 @@ bool RISCVFSAPDomLvBasedPriority::runOnMachineFunction(MachineFunction &MF) {
   }
 
   for (MachineBasicBlock &MBB : MF) {
-    for (MachineBasicBlock::iterator I = MBB.getFirstTerminator();
-         I != MBB.end(); I = std::next(I)) {
-      MachineInstr &MI = *I;
-      if (MI.isReturn()) {
-        BuildMI(MBB, MI, MI.getDebugLoc(), TII->get(RISCV::FSA_PRI_RESET));
-      }
-    }
-
     DomTreeNodeBase<MachineBasicBlock> *PDomNode = MPDT->getNode(&MBB);
 
     // Skip insertion of the `pri.set` instruction ONLY if it has already been
