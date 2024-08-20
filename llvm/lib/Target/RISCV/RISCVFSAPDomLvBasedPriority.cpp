@@ -69,9 +69,11 @@ bool RISCVFSAPDomLvBasedPriority::runOnMachineFunction(MachineFunction &MF) {
                 "\n\n\n";);
   bool MadeChange = false;
   initialize(MF);
+  // Skip insertion only when opt level is not none
+  bool allowSkip = (MF.getTarget().getOptLevel() != CodeGenOptLevel::None);
 
-  if (!MF.getProperties().hasProperty(
-          MachineFunctionProperties::Property::Divergence)) {
+  if ((!MF.getProperties().hasProperty(
+          MachineFunctionProperties::Property::Divergence)) && allowSkip) {
     LLVM_DEBUG(dbgs() << "Function does not have divergence, skip priority "
                          "instructions insertion\n");
     return false;
@@ -146,7 +148,7 @@ bool RISCVFSAPDomLvBasedPriority::runOnMachineFunction(MachineFunction &MF) {
         .addImm(PDomLv);
     MadeChange = true;
   }
-  
+
   return MadeChange;
 }
 
