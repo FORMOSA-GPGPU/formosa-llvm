@@ -70,6 +70,13 @@ bool RISCVFSAPDomLvBasedPriority::runOnMachineFunction(MachineFunction &MF) {
   bool MadeChange = false;
   initialize(MF);
 
+  if (!MF.getProperties().hasProperty(
+          MachineFunctionProperties::Property::Divergence)) {
+    LLVM_DEBUG(dbgs() << "Function does not have divergence, skip priority "
+                         "instructions insertion\n");
+    return false;
+  }
+
   for (MachineBasicBlock &MBB : MF) {
     for (MachineBasicBlock::iterator I = MBB.getFirstTerminator();
          I != MBB.end(); I = std::next(I)) {
