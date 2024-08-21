@@ -108,56 +108,6 @@ int CodeGenFunction::ParentContainStmtClasses(const Stmt *S,
   return total;
 }
 
-// Return the first parent of S that contains one of the StmtClass Type
-Stmt *CodeGenFunction::GetTypeParentStmt(const Stmt *S,
-                                         ArrayRef<Stmt::StmtClass> Types) {
-  if (!S)
-    return nullptr;
-  S->dump();
-
-  // Check current Stmt
-  for (Stmt::StmtClass Type : Types) {
-    if (S->getStmtClass() == Type)
-      return const_cast<Stmt *>(S);
-  }
-
-  // Recursively check parent
-  const auto &parents = getContext().getParents(*S);
-  for (const auto &parent : parents) {
-    auto *P = GetTypeParentStmt(parent.template get<Stmt>(), Types);
-    llvm::outs() << "Parent";
-    if (P)
-      return P;
-  }
-  llvm::outs() << "No parent\n";
-  return nullptr;
-}
-
-// From the statement S, check if the AST follows the format. The parent
-// relationship does not have to be immediate parent.
-//   PPTypes
-//   |-- PTypes
-//   |----- S
-bool CodeGenFunction::ParentsFollowOrder(const Stmt *S,
-                                         ArrayRef<Stmt::StmtClass> PPTypes,
-                                         ArrayRef<Stmt::StmtClass> PTypes) {
-  if (PPTypes.empty() || PTypes.empty())
-    return false;
-
-  // Check if the parent of S has the Type2 statment
-  llvm::outs() << "Type 2\n";
-  auto *P = GetTypeParentStmt(S, PTypes);
-  if (!P)
-    return false;
-
-  // Check if the parent of P has the Type1 statement
-  llvm::outs() << "Type 1\n";
-  auto *PP = GetTypeParentStmt(P, PPTypes);
-  if (!PP)
-    return false;
-  return true;
-}
-
 void CodeGenFunction::EmitStmt(const Stmt *S, ArrayRef<const Attr *> Attrs) {
   assert(S && "Null statement?");
   PGO.setCurrentStmt(S);
@@ -304,13 +254,6 @@ void CodeGenFunction::EmitStmt(const Stmt *S, ArrayRef<const Attr *> Attrs) {
               CC->getStmtClass() == Stmt::DefaultStmtClass) {
             AllowInsertFSALower = !ChildrenContainStmtClasses(
                 CC, {Stmt::ReturnStmtClass, Stmt::GotoStmtClass});
-          }
-          // We can insert the intrinsic if we meet a break statement
-          if (AllowInsertFSALower &&
-              (CC->getStmtClass() == Stmt::BreakStmtClass ||
-               CC == *last_child)) {
-            CallRISCVFSAPriIntrinsic(llvm::Intrinsic::riscv_fsa_pri_lower);
-            break;
           }
         }
       }
@@ -1767,21 +1710,7 @@ void CodeGenFunction::EmitDeclStmt(const DeclStmt &S) {
 void CodeGenFunction::EmitBreakStmt(const BreakStmt &S) {
   assert(!BreakContinueStack.empty() && "break stmt not in a loop or switch!");
 
-  // If this code is reachable then emit a stop point (if generating
-  // debug info). We have to do this ourselves because we are on the
-  // "simple" statement path.
-  if (HaveInsertPoint())
-    EmitStopPoint(&S);
-
-  bool HasIfStmtInLoopStmt =
-      ParentsFollowOrder(&cast<Stmt>(S),
-                         {Stmt::WhileStmtClass, Stmt::DoStmtClass,
-                          Stmt::ForStmtClass, Stmt::CXXForRangeStmtClass},
-                         {Stmt::IfStmtClass});
-
-  // if direct parent is a if stmt or compound if stmt, and has a loop ancestor,
-  // then emit a riscv_fsa_pri_lower intrinsic
-  if (HasIfStmtInLoopStmt) {
+  if (!BreakContinueStack.empty()) {
     CallRISCVFSAPriIntrinsic(llvm::Intrinsic::riscv_fsa_pri_lower);
   }
   EmitBranchThroughCleanup(BreakContinueStack.back().BreakBlock);
