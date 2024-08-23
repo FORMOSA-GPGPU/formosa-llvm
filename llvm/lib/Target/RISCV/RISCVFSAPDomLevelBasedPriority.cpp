@@ -10,10 +10,10 @@
 
 #include <iterator>
 using namespace llvm;
-#define DEBUG_TYPE "RISCVFSAPDomLvBasedPriority"
+#define DEBUG_TYPE "RISCVFSAPDomLevelBasedPriority"
 
 namespace {
-class RISCVFSAPDomLvBasedPriority : public MachineFunctionPass {
+class RISCVFSAPDomLevelBasedPriority : public MachineFunctionPass {
 private:
   // Target Reg info
   const RISCVRegisterInfo *TRI;
@@ -22,11 +22,11 @@ private:
 
 public:
   static char ID;
-  RISCVFSAPDomLvBasedPriority() : MachineFunctionPass(ID) {}
+  RISCVFSAPDomLevelBasedPriority() : MachineFunctionPass(ID) {}
   void initialize(MachineFunction &F);
   bool runOnMachineFunction(MachineFunction &MF) override;
   StringRef getPassName() const override {
-    return "RISCVFSAPDomLvBasedPriority";
+    return "RISCVFSAPDomLevelBasedPriority";
   }
   void getAnalysisUsage(AnalysisUsage &AU) const override {
     AU.addRequired<MachinePostDominatorTreeWrapperPass>();
@@ -36,26 +36,26 @@ public:
 
 } // namespace
 
-char RISCVFSAPDomLvBasedPriority::ID = 0;
+char RISCVFSAPDomLevelBasedPriority::ID = 0;
 
-INITIALIZE_PASS_BEGIN(RISCVFSAPDomLvBasedPriority, DEBUG_TYPE,
+INITIALIZE_PASS_BEGIN(RISCVFSAPDomLevelBasedPriority, DEBUG_TYPE,
                       "FSA handling PDom priority by inserting fsa.pri "
                       "instructions based on PDom level",
                       false, false)
 INITIALIZE_PASS_DEPENDENCY(MachinePostDominatorTreeWrapperPass)
-INITIALIZE_PASS_END(RISCVFSAPDomLvBasedPriority, DEBUG_TYPE,
+INITIALIZE_PASS_END(RISCVFSAPDomLevelBasedPriority, DEBUG_TYPE,
                     "FSA handling PDom priority by inserting fsa.pri "
                     "instructions based on PDom level",
                     false, false)
 
-void RISCVFSAPDomLvBasedPriority::initialize(MachineFunction &MF) {
+void RISCVFSAPDomLevelBasedPriority::initialize(MachineFunction &MF) {
   const auto &ST = MF.getSubtarget<RISCVSubtarget>();
   MPDT = &getAnalysis<MachinePostDominatorTreeWrapperPass>().getPostDomTree();
   TII = ST.getInstrInfo();
   TRI = ST.getRegisterInfo();
 }
 
-bool RISCVFSAPDomLvBasedPriority::runOnMachineFunction(MachineFunction &MF) {
+bool RISCVFSAPDomLevelBasedPriority::runOnMachineFunction(MachineFunction &MF) {
   const auto &ST = MF.getSubtarget<RISCVSubtarget>();
   // skip the pass if there is no XFormosaPri extension
   if (!ST.hasFeature(RISCV::FeatureVendorXFormosaPri))
@@ -63,7 +63,7 @@ bool RISCVFSAPDomLvBasedPriority::runOnMachineFunction(MachineFunction &MF) {
   LLVM_DEBUG(
       dbgs() << "------------------------------------------------------------"
                 "\n";
-      dbgs() << "Running RISCVFSAPDomLvBasedPriority on function: "
+      dbgs() << "Running RISCVFSAPDomLevelBasedPriority on function: "
              << MF.getName() << "\n";
       dbgs() << "------------------------------------------------------------"
                 "\n\n\n";);
@@ -97,10 +97,10 @@ bool RISCVFSAPDomLvBasedPriority::runOnMachineFunction(MachineFunction &MF) {
       continue;
     }
 
-    unsigned int PDomLv = PDomNode->getLevel();
+    unsigned int PDomLevel = PDomNode->getLevel();
 
-    // "CPNLv" stands for "corresponding PDom node level in the PDom tree."
-    // If the CPNLv of the current MBB is the same as that of all its
+    // "CPNLevel" stands for "corresponding PDom node level in the PDom tree."
+    // If the CPNLevel of the current MBB is the same as that of all its
     // predecessors, the insertion of the current MBB is redundant and
     // should be skipped. The following code performs this check.
     for (MachineBasicBlock *Pred : predecessors(&MBB)) {
@@ -114,7 +114,7 @@ bool RISCVFSAPDomLvBasedPriority::runOnMachineFunction(MachineFunction &MF) {
         IsRedundantInsertion = false;
         break;
       }
-      if (PredPDomNode->getLevel() != PDomLv) {
+      if (PredPDomNode->getLevel() != PDomLevel) {
         IsRedundantInsertion = false;
         break;
       }
@@ -123,27 +123,27 @@ bool RISCVFSAPDomLvBasedPriority::runOnMachineFunction(MachineFunction &MF) {
     if (IsRedundantInsertion) {
       LLVM_DEBUG(dbgs() << "BB " << MBB.getName()
                         << "has the same priority of all it's predecessors: "
-                        << "with level" << PDomLv << ", skip insertion\n");
+                        << "with level" << PDomLevel << ", skip insertion\n");
       continue;
     }
 
     // set the priority based on the level of IDom
-    LLVM_DEBUG(dbgs() << "BB " << MBB.getName() << " priority: " << PDomLv
+    LLVM_DEBUG(dbgs() << "BB " << MBB.getName() << " priority: " << PDomLevel
                       << "\n");
-    if (PDomLv > 63) {
+    if (PDomLevel > 63) {
       report_fatal_error("Number of PDom level exceeds 63, cannot insert "
                          "fsa.pri.set instructions");
     }
 
     BuildMI(MBB, MBB.begin(), MBB.findDebugLoc(MBB.begin()),
             TII->get(RISCV::FSA_PRI_SET))
-        .addImm(PDomLv);
+        .addImm(PDomLevel);
     MadeChange = true;
   }
 
   return MadeChange;
 }
 
-FunctionPass *llvm::createRISCVFSAPDomLvBasedPriorityPass() {
-  return new RISCVFSAPDomLvBasedPriority();
+FunctionPass *llvm::createRISCVFSAPDomLevelBasedPriorityPass() {
+  return new RISCVFSAPDomLevelBasedPriority();
 }

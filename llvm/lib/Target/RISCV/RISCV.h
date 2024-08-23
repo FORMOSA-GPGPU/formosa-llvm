@@ -106,8 +106,8 @@ void initializeRISCVFSARemoveRedundantPriPass(PassRegistry &);
 FunctionPass *createRISCVFSAInsertMinPCPriPass();
 void initializeRISCVFSAInsertMinPCPriPass(PassRegistry &);
 
-FunctionPass *createRISCVFSAPDomLvBasedPriorityPass();
-void initializeRISCVFSAPDomLvBasedPriorityPass(PassRegistry &);
+FunctionPass *createRISCVFSAPDomLevelBasedPriorityPass();
+void initializeRISCVFSAPDomLevelBasedPriorityPass(PassRegistry &);
 } // namespace llvm
 
 #endif
