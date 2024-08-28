@@ -97,8 +97,10 @@ int CodeGenFunction::ParentContainStmtClasses(const Stmt *S,
 
   // Check current Stmt
   for (Stmt::StmtClass Type : Types) {
-    if (S->getStmtClass() == Type)
+    if (S->getStmtClass() == Type) {
       total++;
+      break;
+    }
   }
   // Recursively check parent
   const auto &parents = getContext().getParents(*S);
@@ -214,7 +216,7 @@ void CodeGenFunction::EmitStmt(const Stmt *S, ArrayRef<const Attr *> Attrs) {
     if (!(ChildrenContainStmtClasses(
               cast<IfStmt>(*S).getThen(),
               {Stmt::ReturnStmtClass, Stmt::GotoStmtClass}) &&
-          (cast<IfStmt>(*S).getElse() == nullptr ||
+          (cast<IfStmt>(*S).getElse() != nullptr &&
            ChildrenContainStmtClasses(
                cast<IfStmt>(*S).getElse(),
                {Stmt::ReturnStmtClass, Stmt::GotoStmtClass})))) {
