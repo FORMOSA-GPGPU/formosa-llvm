@@ -148,7 +148,6 @@ void CodeGenFunction::EmitStmt(const Stmt *S, ArrayRef<const Attr *> Attrs) {
     }
   }
 
-  bool AllowInsertFSALower = false;
 
   switch (S->getStmtClass()) {
   case Stmt::NoStmtClass:
@@ -244,22 +243,6 @@ void CodeGenFunction::EmitStmt(const Stmt *S, ArrayRef<const Attr *> Attrs) {
   case Stmt::SwitchStmtClass:
     CallRISCVFSAPriIntrinsic(llvm::Intrinsic::riscv_fsa_pri_raise);
     EmitSwitchStmt(cast<SwitchStmt>(*S));
-    // Iterate switch children and find the compound statement
-    for (const auto *SC : cast<SwitchStmt>(*S).children()) {
-      if (SC->getStmtClass() == Stmt::CompoundStmtClass) {
-        // Iterate the compound statment to check the condition of insertion
-        auto const last_child = cast<CompoundStmt>(*SC).child_end();
-        for (const auto *CC : cast<CompoundStmt>(*SC).children()) {
-          // If any of the child has no return or goto statement, then we can
-          // insert the intrinsic
-          if (CC->getStmtClass() == Stmt::CaseStmtClass ||
-              CC->getStmtClass() == Stmt::DefaultStmtClass) {
-            AllowInsertFSALower = !ChildrenContainStmtClasses(
-                CC, {Stmt::ReturnStmtClass, Stmt::GotoStmtClass});
-          }
-        }
-      }
-    }
     break;
   case Stmt::GCCAsmStmtClass: // Intentional fall-through.
   case Stmt::MSAsmStmtClass:
