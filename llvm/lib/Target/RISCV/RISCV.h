@@ -93,6 +93,12 @@ void initializeRISCVO0PreLegalizerCombinerPass(PassRegistry &);
 
 FunctionPass *createRISCVPreLegalizerCombiner();
 void initializeRISCVPreLegalizerCombinerPass(PassRegistry &);
+
+FunctionPass *createRISCVFSADivergenceAnalysisPass();
+void initializeRISCVFSADivergenceAnalysisPass(PassRegistry &);
+
+FunctionPass *createRISCVFSAInsertFunctPriPass();
+void initializeRISCVFSAInsertFunctPriPass(PassRegistry &);
 } // namespace llvm
 
 #endif

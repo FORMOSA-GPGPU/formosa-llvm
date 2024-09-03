@@ -187,7 +187,8 @@ public:
     TiedOpsRewritten,
     FailsVerification,
     TracksDebugUserValues,
-    LastProperty = TracksDebugUserValues,
+    Divergence,
+    LastProperty = Divergence
   };
 
   bool hasProperty(Property P) const {
