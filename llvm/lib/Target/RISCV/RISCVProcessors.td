@@ -83,16 +83,16 @@ def ROCKET_RV64 : RISCVProcessorModel<"rocket-rv64",
 def ROCKET : RISCVTuneProcessorModel<"rocket",
                                      RocketModel>;
 
-def SIMTIX : RISCVProcessorModel<"simtix",
-                                 RocketModel,
-                                 [Feature64Bit,
-                                  FeatureStdExtI,
-                                  FeatureStdExtZicsr,
-                                  FeatureStdExtZifencei,
-                                  FeatureStdExtM,
-                                  FeatureStdExtZicond,
-                                  FeatureVendorXFormosaPri,
-                                  FeatureVendorXFormosaBar]>;
+def FORMOSA_GPGPU : RISCVProcessorModel<"formosa-gpgpu",
+                                        RocketModel,
+                                        [Feature64Bit,
+                                         FeatureStdExtI,
+                                         FeatureStdExtZicsr,
+                                         FeatureStdExtZifencei,
+                                         FeatureStdExtM,
+                                         FeatureStdExtZicond,
+                                         FeatureVendorXFormosaPri,
+                                         FeatureVendorXFormosaBar]>;
 
 defvar SiFive7TuneFeatures = [TuneSiFive7, TuneNoDefaultUnroll,
                               TuneShortForwardBranchOpt,
