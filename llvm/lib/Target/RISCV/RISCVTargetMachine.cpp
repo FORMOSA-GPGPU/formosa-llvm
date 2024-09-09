@@ -103,9 +103,15 @@ static cl::opt<bool> EnableVSETVLIAfterRVVRegAlloc(
     cl::desc("Insert vsetvls after vector register allocation"),
     cl::init(true));
 
-static cl::opt<bool> EnableFSAFunctionPriority(
-    "fsa-function-priority", cl::Hidden,
-    cl::desc("Enable function priority insertion"), cl::init(false));
+static cl::opt<bool>
+    EnableFSAFunctionPriority("fsa-function-priority", cl::Hidden,
+                              cl::desc("Enable function priority insertion"),
+                              cl::init(false));
+
+static cl::opt<bool>
+    EnableFSAMinPC("fsa-min-pc", cl::Hidden,
+                   cl::desc("Enable the MinPC pass for divergence handling"),
+                   cl::init(false));
 
 extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeRISCVTarget() {
   RegisterTargetMachine<RISCVTargetMachine> X(getTheRISCV32Target());
@@ -539,17 +545,22 @@ void RISCVPassConfig::addPreEmitPass2() {
     return MF.getFunction().getParent()->getModuleFlag("kcfi");
   }));
 
+  // Add pass for XFormosaPri
   if (EnableFSAFunctionPriority) {
     MCSubtargetInfo STI = *TM->getMCSubtargetInfo();
     if (!STI.hasFeature(RISCV::FeatureVendorXFormosaPri)) {
-      llvm_unreachable("FSA function priority insertion requires XFormosaPri "
-                       "extension");
+      report_fatal_error("FSA function priority insertion requires XFormosaPri "
+                         "extension");
     }
     addPass(createRISCVFSAInsertFunctPriPass());
   }
 
-  // Add pass for XFormosaPri
-  addPass(createRISCVFSAInsertMinPCPriPass());
+  if (EnableFSAMinPC) {
+    MCSubtargetInfo STI = *TM->getMCSubtargetInfo();
+    if (!STI.hasFeature(RISCV::FeatureVendorXFormosaPri))
+      report_fatal_error("MinPC pass requires XFormosaPri extension");
+    addPass(createRISCVFSAInsertMinPCPriPass());
+  }
 }
 
 void RISCVPassConfig::addMachineSSAOptimization() {
@@ -588,7 +599,6 @@ void RISCVPassConfig::addFastRegAlloc() {
   addPass(&InitUndefID);
   TargetPassConfig::addFastRegAlloc();
 }
-
 
 void RISCVPassConfig::addPostRegAlloc() {
   if (TM->getOptLevel() != CodeGenOptLevel::None &&

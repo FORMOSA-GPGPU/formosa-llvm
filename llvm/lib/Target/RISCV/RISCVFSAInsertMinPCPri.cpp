@@ -49,10 +49,6 @@ void RISCVFSAInsertMinPCPri::initialize(MachineFunction &MF) {
 }
 
 bool RISCVFSAInsertMinPCPri::runOnMachineFunction(MachineFunction &MF) {
-  const auto &ST = MF.getSubtarget<RISCVSubtarget>();
-  // skip the pass if there is no XFormosaPri extension
-  if (!ST.hasFeature(RISCV::FeatureVendorXFormosaPri))
-    return false;
   LLVM_DEBUG(dbgs() << "Pass RISCVFSAInsertMinPCPri: " << MF.getName() << "\n");
   initialize(MF);
   bool MadeChange = false;
