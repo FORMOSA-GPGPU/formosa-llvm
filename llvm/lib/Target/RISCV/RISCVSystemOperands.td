@@ -467,3 +467,6 @@ multiclass RISCVFSACSR<string mnemonic, int base> {
 def  FSA_XTID     : SysReg<"xtid", 0xFE0>;
 def  FSA_XTSTATUS : SysReg<"xtstatus", 0xFE1>;
 defm FSA_XCLL     : RISCVFSACSR<"xcll", 0xFE2>;
+defm FSA_XCLS     : RISCVFSACSR<"xcls", 0xFC5>;
+defm FSA_XCLW     : RISCVFSACSR<"xclw", 0xFC8>;
+defm FSA_XCLGS    : RISCVFSACSR<"xclgs", 0xFC2>;
