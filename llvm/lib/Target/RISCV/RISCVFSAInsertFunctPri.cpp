@@ -46,10 +46,6 @@ void RISCVFSAInsertFunctPri::initialize(MachineFunction &MF) {
 }
 
 bool RISCVFSAInsertFunctPri::runOnMachineFunction(MachineFunction &MF) {
-  const auto &ST = MF.getSubtarget<RISCVSubtarget>();
-  // skip the pass if there is no XFormosaPri extension
-  if (!ST.hasFeature(RISCV::FeatureVendorXFormosaPri))
-    return false;
   initialize(MF);
 
   // Insert priority raise at the beginning of the function
