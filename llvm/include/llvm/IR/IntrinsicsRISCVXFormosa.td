@@ -50,11 +50,15 @@ let TargetPrefix = "riscv" in {
 
   defm int_riscv_fsa_local_id : RISCVXFormosaCSRIntrinsicsNamed<"local_id">;
   defm int_riscv_fsa_local_size : RISCVXFormosaCSRIntrinsicsNamed<"local_size">;
+  defm int_riscv_fsa_global_id : RISCVXFormosaCSRIntrinsicsNamed<"global_id">;
   defm int_riscv_fsa_global_size : RISCVXFormosaCSRIntrinsicsNamed<"global_size">;
 
   def  int_riscv_fsa_thread_id : ClangBuiltin<"__builtin_riscv_fsa_thread_id">,
     Intrinsic<[llvm_i64_ty], [], [IntrNoMem, IntrNoFree]>;
 
   def  int_riscv_fsa_thread_status : ClangBuiltin<"__builtin_riscv_fsa_thread_status">,
+    Intrinsic<[llvm_i64_ty], [], [IntrNoMem, IntrNoFree]>;
+
+  def int_riscv_fsa_xdim : ClangBuiltin<"__builtin_riscv_fsa_xdim">,
     Intrinsic<[llvm_i64_ty], [], [IntrNoMem, IntrNoFree]>;
 } // TargetPrefix = "riscv"

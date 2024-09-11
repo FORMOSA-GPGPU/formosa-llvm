@@ -185,6 +185,11 @@ public:
     return false;
   }
 
+  void setSupportedOpenCLOpts() override {
+    auto &Opts = getSupportedOpenCLOpts();
+    Opts["cl_clang_storage_class_specifiers"] = true;
+  }
+
   void setMaxAtomicWidth() override {
     MaxAtomicPromoteWidth = 128;
 
