@@ -104,7 +104,7 @@ static cl::opt<bool> EnableVSETVLIAfterRVVRegAlloc(
     cl::init(true));
 
 static cl::opt<bool> EnableFSAFunctionPriority(
-    "riscv-enable-fsa-function-priority", cl::Hidden,
+    "fsa-function-priority", cl::Hidden,
     cl::desc("Enable function priority insertion"), cl::init(false));
 
 extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeRISCVTarget() {
@@ -540,8 +540,10 @@ void RISCVPassConfig::addPreEmitPass2() {
 
   if (EnableFSAFunctionPriority) {
     MCSubtargetInfo STI = *TM->getMCSubtargetInfo();
-    assert(STI.hasFeature(RISCV::FeatureVendorXFormosaPri) &&
-           "FSA function priority insertion requires XFormosaPri extension");
+    if (!STI.hasFeature(RISCV::FeatureVendorXFormosaPri)) {
+      llvm_unreachable("FSA function priority insertion requires XFormosaPri "
+                       "extension");
+    }
     addPass(createRISCVFSAInsertFunctPriPass());
   }
 }
