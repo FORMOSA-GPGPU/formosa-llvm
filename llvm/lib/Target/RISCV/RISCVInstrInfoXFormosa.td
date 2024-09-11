@@ -94,3 +94,4 @@ def : Pat<(i64 (int_riscv_fsa_global_size_z)), (CSRRS FSA_XCLGSZ.Encoding, (XLen
 
 def : Pat<(i64 (int_riscv_fsa_thread_id)),     (CSRRS FSA_XTID.Encoding,     (XLenVT X0))>;
 def : Pat<(i64 (int_riscv_fsa_thread_status)), (CSRRS FSA_XTSTATUS.Encoding, (XLenVT X0))>;
+def : Pat<(i64 (int_riscv_fsa_xdim)), (CSRRS FSA_XDIM.Encoding, (XLenVT X0))>;

@@ -57,4 +57,7 @@ let TargetPrefix = "riscv" in {
 
   def  int_riscv_fsa_thread_status : ClangBuiltin<"__builtin_riscv_fsa_thread_status">,
     Intrinsic<[llvm_i64_ty], [], [IntrNoMem, IntrNoFree]>;
+
+  def int_riscv_fsa_xdim : ClangBuiltin<"__builtin_riscv_fsa_xdim">,
+    Intrinsic<[llvm_i64_ty], [], [IntrNoMem, IntrNoFree]>;
 } // TargetPrefix = "riscv"
