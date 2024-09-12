@@ -40,12 +40,14 @@ char RISCVFSAPDomLevelBasedPriority::ID = 0;
 
 INITIALIZE_PASS_BEGIN(RISCVFSAPDomLevelBasedPriority, DEBUG_TYPE,
                       "FSA handling PDom priority by inserting fsa.pri "
-                      "instructions based on PDom level",
+                      "instructions based on PDom level, use argument "
+                      "-fsa-pdom-level-priority to enable the pass",
                       false, false)
 INITIALIZE_PASS_DEPENDENCY(MachinePostDominatorTreeWrapperPass)
 INITIALIZE_PASS_END(RISCVFSAPDomLevelBasedPriority, DEBUG_TYPE,
                     "FSA handling PDom priority by inserting fsa.pri "
-                    "instructions based on PDom level",
+                    "instructions based on PDom level, use argument "
+                    "-fsa-pdom-level-priority to enable the pass",
                     false, false)
 
 void RISCVFSAPDomLevelBasedPriority::initialize(MachineFunction &MF) {
@@ -56,10 +58,6 @@ void RISCVFSAPDomLevelBasedPriority::initialize(MachineFunction &MF) {
 }
 
 bool RISCVFSAPDomLevelBasedPriority::runOnMachineFunction(MachineFunction &MF) {
-  const auto &ST = MF.getSubtarget<RISCVSubtarget>();
-  // skip the pass if there is no XFormosaPri extension
-  if (!ST.hasFeature(RISCV::FeatureVendorXFormosaPri))
-    return false;
   LLVM_DEBUG(
       dbgs() << "------------------------------------------------------------"
                 "\n";
@@ -70,10 +68,11 @@ bool RISCVFSAPDomLevelBasedPriority::runOnMachineFunction(MachineFunction &MF) {
   bool MadeChange = false;
   initialize(MF);
   // Skip insertion only when opt level is not none
-  bool allowSkip = (MF.getTarget().getOptLevel() != CodeGenOptLevel::None);
+  bool AllowSkip = (MF.getTarget().getOptLevel() != CodeGenOptLevel::None);
 
   if ((!MF.getProperties().hasProperty(
-          MachineFunctionProperties::Property::Divergence)) && allowSkip) {
+          MachineFunctionProperties::Property::Divergence)) &&
+      AllowSkip) {
     LLVM_DEBUG(dbgs() << "Function does not have divergence, skip priority "
                          "instructions insertion\n");
     return false;
