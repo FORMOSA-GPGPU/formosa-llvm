@@ -103,6 +103,10 @@ static cl::opt<bool> EnableVSETVLIAfterRVVRegAlloc(
     cl::desc("Insert vsetvls after vector register allocation"),
     cl::init(true));
 
+static cl::opt<bool> EnableFSAFunctionPriority(
+    "fsa-function-priority", cl::Hidden,
+    cl::desc("Enable function priority insertion"), cl::init(false));
+
 extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeRISCVTarget() {
   RegisterTargetMachine<RISCVTargetMachine> X(getTheRISCV32Target());
   RegisterTargetMachine<RISCVTargetMachine> Y(getTheRISCV64Target());
@@ -129,8 +133,7 @@ extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeRISCVTarget() {
   initializeRISCVMoveMergePass(*PR);
   initializeRISCVPushPopOptPass(*PR);
   initializeRISCVFSADivergenceAnalysisPass(*PR);
-  // TODO: Uncomment the following line to enable function priority insertion.
-  // initializeRISCVFSAInsertFunctPriPass(*PR);
+  initializeRISCVFSAInsertFunctPriPass(*PR);
 }
 
 static StringRef computeDataLayout(const Triple &TT,
@@ -534,8 +537,15 @@ void RISCVPassConfig::addPreEmitPass2() {
   addPass(createUnpackMachineBundles([&](const MachineFunction &MF) {
     return MF.getFunction().getParent()->getModuleFlag("kcfi");
   }));
-  // TODO: Uncomment the following line to enable function priority insertion.
-  // addPass(createRISCVFSAInsertFunctPriPass());
+
+  if (EnableFSAFunctionPriority) {
+    MCSubtargetInfo STI = *TM->getMCSubtargetInfo();
+    if (!STI.hasFeature(RISCV::FeatureVendorXFormosaPri)) {
+      llvm_unreachable("FSA function priority insertion requires XFormosaPri "
+                       "extension");
+    }
+    addPass(createRISCVFSAInsertFunctPriPass());
+  }
 }
 
 void RISCVPassConfig::addMachineSSAOptimization() {
