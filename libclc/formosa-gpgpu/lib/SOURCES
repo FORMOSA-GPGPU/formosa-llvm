@@ -1,5 +1,6 @@
 workitem/get_local_id.cl
 math/fma.cl
+synchronization/barrier.cl
 ../../generic/lib/async/async_work_group_strided_copy.cl
 ../../generic/lib/async/wait_group_events.cl
 ../../generic/lib/common/degrees.cl
