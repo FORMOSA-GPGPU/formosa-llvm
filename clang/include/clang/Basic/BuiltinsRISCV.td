@@ -155,9 +155,13 @@ multiclass RISCVFSACSRBuiltin {
   def _z : RISCVBuiltin<"uint64_t()">;
 }
 
+defm fsa_global_size: RISCVFSACSRBuiltin;
+defm fsa_global_id : RISCVFSACSRBuiltin;
 defm fsa_local_id : RISCVFSACSRBuiltin;
+defm fsa_local_size : RISCVFSACSRBuiltin;
 def fsa_thread_id : RISCVBuiltin<"uint64_t()">;
 def fsa_thread_status : RISCVBuiltin<"uint64_t()">;
+def fsa_xdim : RISCVBuiltin<"uint64_t()">;
 } // Features = "xformosapri"
 
 //===----------------------------------------------------------------------===//

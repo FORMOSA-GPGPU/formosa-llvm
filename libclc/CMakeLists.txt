@@ -29,7 +29,8 @@ set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
   ptx-nvidiacl/lib/SOURCES;
   r600/lib/SOURCES;
   spirv/lib/SOURCES;
-  spirv64/lib/SOURCES
+  spirv64/lib/SOURCES;
+  formosa-gpgpu/lib/SOURCES;
 )
 
 set( LIBCLC_MIN_LLVM 3.9.0 )
@@ -122,6 +123,7 @@ set( LIBCLC_TARGETS_ALL
   nvptx64--
   nvptx--nvidiacl
   nvptx64--nvidiacl
+  riscv64-unknown-elf
 )
 
 # mesa3d environment is only available since LLVM 4.0
@@ -191,6 +193,7 @@ set( nvptx--nvidiacl_devices none )
 set( nvptx64--nvidiacl_devices none )
 set( spirv-mesa3d-_devices none )
 set( spirv64-mesa3d-_devices none )
+set( riscv64-unknown-elf_devices formosa-gpgpu )
 
 # Setup aliases
 set( cedar_aliases palm sumo sumo2 redwood juniper )
@@ -251,8 +254,13 @@ foreach( t ${LIBCLC_TARGETS_TO_BUILD} )
 
   set( dirs )
 
+  if( ${ARCH} STREQUAL riscv64 )
+    list( APPEND dirs formosa-gpgpu )
+  endif()
+
   if ( NOT ${ARCH} STREQUAL spirv AND NOT ${ARCH} STREQUAL spirv64 AND
-       NOT ${ARCH} STREQUAL clspv AND NOT ${ARCH} STREQUAL clspv64)
+      NOT ${ARCH} STREQUAL clspv AND NOT ${ARCH} STREQUAL clspv64 AND
+      NOT ${ARCH} STREQUAL riscv64 )
     LIST( APPEND dirs generic )
   endif()
 
