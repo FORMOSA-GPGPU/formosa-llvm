@@ -50,6 +50,12 @@ using namespace CodeGen;
 
 namespace llvm {
 extern cl::opt<bool> EnableSingleByteCoverage;
+static cl::opt<bool>
+    EnableFSAICSFirst("fsa-ics-first",
+            cl::Hidden,
+            cl::desc("Enable ICS-First method for divergence handling"),
+            cl::init(false));
+
 } // namespace llvm
 
 void CodeGenFunction::EmitStopPoint(const Stmt *S) {
@@ -63,8 +69,10 @@ void CodeGenFunction::EmitStopPoint(const Stmt *S) {
 }
 
 void CodeGenFunction::CallRISCVFSAPriIntrinsic(llvm::Intrinsic::ID ID) {
-  if (getTarget().getTriple().getArchName() == "riscv64" &&
-      getTarget().hasFeature("xformosapri")) {
+  if (llvm::EnableFSAICSFirst) {
+    if (!getTarget().hasFeature("xformosapri")) {
+      llvm::report_fatal_error("FSA ICS-First requires XFormosaPri extension");
+    }
     Builder.CreateCall(CGM.getIntrinsic(ID));
   }
 }
