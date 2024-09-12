@@ -123,6 +123,11 @@ static cl::opt<bool, true> EnableFSAICSFirst(
 static cl::opt<bool> EnableFSAPDomLevelBasedPriority(
     "fsa-pdom-level-priority", cl::Hidden,
     cl::desc("Enable pdom lever based priority insertion pass"), cl::init(false));
+    
+static cl::opt<bool>
+    EnableFSAAutoInsertPri("fsa-auto-insert-priority", cl::Hidden,
+                   cl::desc("Enable the pass auto priority insertion in IDom and IPDom for divergence handling"),
+                   cl::init(false));
 
 extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeRISCVTarget() {
   RegisterTargetMachine<RISCVTargetMachine> X(getTheRISCV32Target());
@@ -593,8 +598,12 @@ void RISCVPassConfig::addPreEmitPass2() {
     addPass(createRISCVFSAPDomLevelBasedPriorityPass());
   }
   
-  // Add pass for XFormosaBar
-  addPass(createRISCVFSAInsertPriPass());
+  if(EnableFSAAutoInsertPri){
+    MCSubtargetInfo STI = *TM->getMCSubtargetInfo();
+    if (!STI.hasFeature(RISCV::FeatureVendorXFormosaPri))
+      report_fatal_error("FSA auto insert pri pass requires XFormosaPri extension");
+    addPass(createRISCVFSAInsertPriPass());
+  }
 
 }
 

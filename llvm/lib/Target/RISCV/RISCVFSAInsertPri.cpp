@@ -41,13 +41,15 @@ char RISCVFSAInsertPri::ID = 0;
 
 INITIALIZE_PASS_BEGIN(
     RISCVFSAInsertPri, DEBUG_TYPE,
-    "FSA update branch instructions by inserting fsa.pri instructions", false,
+    "FSA divergence handling by inserting fsa.pri instructions, "
+    "use argument -fsa-auto-insert-priority to enable the pass", false,
     false)
 INITIALIZE_PASS_DEPENDENCY(MachinePostDominatorTreeWrapperPass)
 INITIALIZE_PASS_DEPENDENCY(MachineLoopInfoWrapperPass)
 INITIALIZE_PASS_END(
     RISCVFSAInsertPri, DEBUG_TYPE,
-    "FSA update branch instructions by inserting fsa.pri instructions", false,
+    "FSA divergence handling by inserting fsa.pri instructions, "
+    "use argument -fsa-auto-insert-priority to enable the pass", false,
     false)
 
 void RISCVFSAInsertPri::initialize(MachineFunction &MF) {
@@ -59,11 +61,7 @@ void RISCVFSAInsertPri::initialize(MachineFunction &MF) {
 }
 
 bool RISCVFSAInsertPri::runOnMachineFunction(MachineFunction &MF) {
-  const auto &ST = MF.getSubtarget<RISCVSubtarget>();
   int InsertPair = 0;
-  // skip the pass if there is no XFormosaPri extension
-  if (!ST.hasFeature(RISCV::FeatureVendorXFormosaPri))
-    return false;
   std::set<MachineLoop *> MLoopSet{nullptr};
   LLVM_DEBUG(
       dbgs() << "------------------------------------------------------------"
