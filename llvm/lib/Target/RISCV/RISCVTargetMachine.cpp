@@ -114,7 +114,7 @@ static cl::opt<bool>
                    cl::desc("Enable the MinPC pass for divergence handling"),
                    cl::init(false));
 
-bool UseFSAICSFirst;
+bool UseFSAICSFirst = false;
 static cl::opt<bool, true> EnableFSAICSFirst(
     "fsa-ics-first", cl::Hidden,
     cl::desc("Enable the ICS-First pass for divergence handling"),
@@ -534,8 +534,12 @@ void RISCVPassConfig::addPreEmitPass() {
   addPass(createRISCVMakeCompressibleOptPass());
 
   // Remove redundant PRI instructions.
-  if (UseFSAICSFirst && TM->getOptLevel() != CodeGenOptLevel::None)
+  if (UseFSAICSFirst && TM->getOptLevel() != CodeGenOptLevel::None) {
+    const auto *STI = TM->getMCSubtargetInfo();
+    if (!STI->hasFeature(RISCV::FeatureVendorXFormosaPri))
+      report_fatal_error("ICS-First pass requires XFormosaPri extension");
     addPass(createRISCVFSARemoveRedundantPriPass());
+  }
 }
 
 void RISCVPassConfig::addPreEmitPass2() {
