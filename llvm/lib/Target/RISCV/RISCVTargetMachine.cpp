@@ -35,6 +35,7 @@
 #include "llvm/MC/TargetRegistry.h"
 #include "llvm/Passes/PassBuilder.h"
 #include "llvm/Support/FormattedStream.h"
+#include "llvm/Support/RISCVFSAOption.h"
 #include "llvm/Target/TargetOptions.h"
 #include "llvm/Transforms/IPO.h"
 #include "llvm/Transforms/Scalar.h"
@@ -112,6 +113,12 @@ static cl::opt<bool>
     EnableFSAMinPC("fsa-min-pc", cl::Hidden,
                    cl::desc("Enable the MinPC pass for divergence handling"),
                    cl::init(false));
+
+bool UseFSAICSFirst;
+static cl::opt<bool, true> EnableFSAICSFirst(
+    "fsa-ics-first", cl::Hidden,
+    cl::desc("Enable the ICS-First pass for divergence handling"),
+    cl::location(UseFSAICSFirst));
 
 extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeRISCVTarget() {
   RegisterTargetMachine<RISCVTargetMachine> X(getTheRISCV32Target());
@@ -527,7 +534,7 @@ void RISCVPassConfig::addPreEmitPass() {
   addPass(createRISCVMakeCompressibleOptPass());
 
   // Remove redundant PRI instructions.
-  if (TM->getOptLevel() != CodeGenOptLevel::None)
+  if (UseFSAICSFirst && TM->getOptLevel() != CodeGenOptLevel::None)
     addPass(createRISCVFSARemoveRedundantPriPass());
 }
 
@@ -549,7 +556,7 @@ void RISCVPassConfig::addPreEmitPass2() {
   addPass(createUnpackMachineBundles([&](const MachineFunction &MF) {
     return MF.getFunction().getParent()->getModuleFlag("kcfi");
   }));
-  
+
   // Add pass for XFormosaPri
   if (EnableFSAFunctionPriority) {
     MCSubtargetInfo STI = *TM->getMCSubtargetInfo();

@@ -36,6 +36,7 @@
 #include "llvm/IR/Intrinsics.h"
 #include "llvm/IR/IntrinsicsRISCV.h"
 #include "llvm/IR/MDBuilder.h"
+#include "llvm/Support/RISCVFSAOption.h"
 #include "llvm/Support/SaveAndRestore.h"
 #include <optional>
 
@@ -50,12 +51,6 @@ using namespace CodeGen;
 
 namespace llvm {
 extern cl::opt<bool> EnableSingleByteCoverage;
-static cl::opt<bool>
-    EnableFSAICSFirst("fsa-ics-first",
-            cl::Hidden,
-            cl::desc("Enable ICS-First method for divergence handling"),
-            cl::init(false));
-
 } // namespace llvm
 
 void CodeGenFunction::EmitStopPoint(const Stmt *S) {
@@ -68,8 +63,9 @@ void CodeGenFunction::EmitStopPoint(const Stmt *S) {
   }
 }
 
+bool UseFSAICSFirst __attribute__((weak));
 void CodeGenFunction::CallRISCVFSAPriIntrinsic(llvm::Intrinsic::ID ID) {
-  if (llvm::EnableFSAICSFirst) {
+  if (UseFSAICSFirst) {
     if (!getTarget().hasFeature("xformosapri")) {
       llvm::report_fatal_error("FSA ICS-First requires XFormosaPri extension");
     }

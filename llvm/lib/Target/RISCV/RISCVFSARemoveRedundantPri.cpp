@@ -4,7 +4,6 @@
 #include "llvm/CodeGen/MachineDominators.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/Passes.h"
-#include "llvm/InitializePasses.h"
 
 using namespace llvm;
 #define DEBUG_TYPE "RISCVFSARemoveRedundantPri"
@@ -46,10 +45,6 @@ void RISCVFSARemoveRedundantPri::initialize(MachineFunction &MF) {
 }
 
 bool RISCVFSARemoveRedundantPri::runOnMachineFunction(MachineFunction &MF) {
-  const auto &ST = MF.getSubtarget<RISCVSubtarget>();
-  // skip the pass if there is no XFormosaPri extension
-  if (!ST.hasFeature(RISCV::FeatureVendorXFormosaPri))
-    return false;
   initialize(MF);
 
   bool HasChanged = false;
