@@ -583,11 +583,11 @@ void RISCVPassConfig::addPreEmitPass2() {
     addPass(createRISCVFSAInsertMinPCPriPass());
   }
 
-  if(EnableFSAPDomLevelBasedPriority){
+  if (EnableFSAPDomLevelBasedPriority) {
     MCSubtargetInfo STI = *TM->getMCSubtargetInfo();
     if (!STI.hasFeature(RISCV::FeatureVendorXFormosaPri)) {
       report_fatal_error("FSA PDom level based priority insertion requires XFormosaPri "
-                       "extension");
+                         "extension");
     }
     addPass(createRISCVFSAPDomLevelBasedPriorityPass());
   }
