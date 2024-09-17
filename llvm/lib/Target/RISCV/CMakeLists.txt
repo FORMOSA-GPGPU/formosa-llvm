@@ -35,6 +35,7 @@ add_llvm_target(RISCVCodeGen
   RISCVExpandAtomicPseudoInsts.cpp
   RISCVExpandPseudoInsts.cpp
   RISCVFrameLowering.cpp
+  RISCVFSAPDomLevelBasedPriority.cpp
   RISCVGatherScatterLowering.cpp
   RISCVInsertVSETVLI.cpp
   RISCVInsertReadWriteCSR.cpp
