@@ -57,6 +57,7 @@ add_llvm_target(RISCVCodeGen
   RISCVVectorPeephole.cpp
   RISCVFSADivergenceAnalysis.cpp
   RISCVFSAInsertFunctPri.cpp
+  RISCVFSARemoveRedundantPri.cpp
   RISCVFSAInsertMinPCPri.cpp
   GISel/RISCVCallLowering.cpp
   GISel/RISCVInstructionSelector.cpp

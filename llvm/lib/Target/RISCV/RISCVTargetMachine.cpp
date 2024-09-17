@@ -35,6 +35,7 @@
 #include "llvm/MC/TargetRegistry.h"
 #include "llvm/Passes/PassBuilder.h"
 #include "llvm/Support/FormattedStream.h"
+#include "llvm/Support/RISCVFSAOption.h"
 #include "llvm/Target/TargetOptions.h"
 #include "llvm/Transforms/IPO.h"
 #include "llvm/Transforms/Scalar.h"
@@ -113,6 +114,12 @@ static cl::opt<bool>
                    cl::desc("Enable the MinPC pass for divergence handling"),
                    cl::init(false));
 
+bool UseFSAICSFirst = false;
+static cl::opt<bool, true> EnableFSAICSFirst(
+    "fsa-ics-first", cl::Hidden,
+    cl::desc("Enable the ICS-First pass for divergence handling"),
+    cl::location(UseFSAICSFirst));
+
 extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeRISCVTarget() {
   RegisterTargetMachine<RISCVTargetMachine> X(getTheRISCV32Target());
   RegisterTargetMachine<RISCVTargetMachine> Y(getTheRISCV64Target());
@@ -140,6 +147,7 @@ extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeRISCVTarget() {
   initializeRISCVPushPopOptPass(*PR);
   initializeRISCVFSADivergenceAnalysisPass(*PR);
   initializeRISCVFSAInsertFunctPriPass(*PR);
+  initializeRISCVFSARemoveRedundantPriPass(*PR);
   initializeRISCVFSAInsertMinPCPriPass(*PR);
 }
 
@@ -524,6 +532,14 @@ void RISCVPassConfig::addPreEmitPass() {
     addPass(createMachineCopyPropagationPass(true));
   addPass(&BranchRelaxationPassID);
   addPass(createRISCVMakeCompressibleOptPass());
+
+  // Remove redundant PRI instructions.
+  if (UseFSAICSFirst && TM->getOptLevel() != CodeGenOptLevel::None) {
+    const auto *STI = TM->getMCSubtargetInfo();
+    if (!STI->hasFeature(RISCV::FeatureVendorXFormosaPri))
+      report_fatal_error("ICS-First pass requires XFormosaPri extension");
+    addPass(createRISCVFSARemoveRedundantPriPass());
+  }
 }
 
 void RISCVPassConfig::addPreEmitPass2() {
