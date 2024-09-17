@@ -125,8 +125,8 @@ static cl::opt<bool> EnableFSAPDomLevelBasedPriority(
     cl::desc("Enable pdom lever based priority insertion pass"), cl::init(false));
     
 static cl::opt<bool>
-    EnableFSAAutoInsertPri("fsa-auto-insert-priority", cl::Hidden,
-                   cl::desc("Enable the pass auto priority insertion in IDom and IPDom for divergence handling"),
+    EnableFSAIPDOMLike("fsa-IPDOM-like", cl::Hidden,
+                   cl::desc("Enable the IPDOM-like pass for divergence handling"),
                    cl::init(false));
 
 extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeRISCVTarget() {
@@ -159,7 +159,7 @@ extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeRISCVTarget() {
   initializeRISCVFSARemoveRedundantPriPass(*PR);
   initializeRISCVFSAInsertMinPCPriPass(*PR);
   initializeRISCVFSAPDomLevelBasedPriorityPass(*PR);
-  initializeRISCVFSAInsertPriPass(*PR);
+  initializeRISCVFSAIPDOMLikePass(*PR);
 }
 
 static StringRef computeDataLayout(const Triple &TT,
@@ -598,11 +598,11 @@ void RISCVPassConfig::addPreEmitPass2() {
     addPass(createRISCVFSAPDomLevelBasedPriorityPass());
   }
   
-  if(EnableFSAAutoInsertPri){
+  if (EnableFSAIPDOMLike) {
     MCSubtargetInfo STI = *TM->getMCSubtargetInfo();
     if (!STI.hasFeature(RISCV::FeatureVendorXFormosaPri))
-      report_fatal_error("FSA auto insert pri pass requires XFormosaPri extension");
-    addPass(createRISCVFSAInsertPriPass());
+      report_fatal_error("FSA IPDOM-like pass requires XFormosaPri extension");
+    addPass(createRISCVFSAIPDOMLikePass());
   }
 
 }

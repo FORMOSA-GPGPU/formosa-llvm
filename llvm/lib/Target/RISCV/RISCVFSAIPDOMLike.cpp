@@ -11,10 +11,10 @@
 
 #include <iterator>
 using namespace llvm;
-#define DEBUG_TYPE "RISCVFSAInsertPri"
+#define DEBUG_TYPE "RISCVFSAIPDOMLike"
 
 namespace {
-class RISCVFSAInsertPri : public MachineFunctionPass {
+class RISCVFSAIPDOMLike : public MachineFunctionPass {
 private:
   // Target Reg info
   const RISCVRegisterInfo *TRI;
@@ -24,10 +24,10 @@ private:
 
 public:
   static char ID;
-  RISCVFSAInsertPri() : MachineFunctionPass(ID) {}
+  RISCVFSAIPDOMLike() : MachineFunctionPass(ID) {}
   void initialize(MachineFunction &F);
   bool runOnMachineFunction(MachineFunction &MF) override;
-  StringRef getPassName() const override { return "RISCVFSAInsertPri"; }
+  StringRef getPassName() const override { return "RISCVFSAIPDOMLike"; }
   void getAnalysisUsage(AnalysisUsage &AU) const override {
     AU.addRequired<MachinePostDominatorTreeWrapperPass>();
     AU.addRequired<MachineLoopInfoWrapperPass>();
@@ -37,22 +37,22 @@ public:
 
 } // namespace
 
-char RISCVFSAInsertPri::ID = 0;
+char RISCVFSAIPDOMLike::ID = 0;
 
 INITIALIZE_PASS_BEGIN(
-    RISCVFSAInsertPri, DEBUG_TYPE,
+    RISCVFSAIPDOMLike, DEBUG_TYPE,
     "FSA divergence handling by inserting fsa.pri instructions, "
-    "use argument -fsa-auto-insert-priority to enable the pass", false,
+    "use argument -fsa-IPDOM-like to enable the pass", false,
     false)
 INITIALIZE_PASS_DEPENDENCY(MachinePostDominatorTreeWrapperPass)
 INITIALIZE_PASS_DEPENDENCY(MachineLoopInfoWrapperPass)
 INITIALIZE_PASS_END(
-    RISCVFSAInsertPri, DEBUG_TYPE,
+    RISCVFSAIPDOMLike, DEBUG_TYPE,
     "FSA divergence handling by inserting fsa.pri instructions, "
-    "use argument -fsa-auto-insert-priority to enable the pass", false,
+    "use argument -fsa-IPDOM-like to enable the pass", false,
     false)
 
-void RISCVFSAInsertPri::initialize(MachineFunction &MF) {
+void RISCVFSAIPDOMLike::initialize(MachineFunction &MF) {
   const auto &ST = MF.getSubtarget<RISCVSubtarget>();
   MPDT = &getAnalysis<MachinePostDominatorTreeWrapperPass>().getPostDomTree();
   MLI = &getAnalysis<MachineLoopInfoWrapperPass>().getLI();
@@ -60,13 +60,13 @@ void RISCVFSAInsertPri::initialize(MachineFunction &MF) {
   TRI = ST.getRegisterInfo();
 }
 
-bool RISCVFSAInsertPri::runOnMachineFunction(MachineFunction &MF) {
+bool RISCVFSAIPDOMLike::runOnMachineFunction(MachineFunction &MF) {
   int InsertPair = 0;
   std::set<MachineLoop *> MLoopSet{nullptr};
   LLVM_DEBUG(
       dbgs() << "------------------------------------------------------------"
                 "\n";
-      dbgs() << "Running RISCVFSAInsertPri on function: " << MF.getName()
+      dbgs() << "Running RISCVFSAPDOMLike on function: " << MF.getName()
              << "\n";
       dbgs() << "------------------------------------------------------------"
                 "\n\n\n";);
@@ -233,6 +233,6 @@ bool RISCVFSAInsertPri::runOnMachineFunction(MachineFunction &MF) {
   return MadeChange;
 }
 
-FunctionPass *llvm::createRISCVFSAInsertPriPass() {
-  return new RISCVFSAInsertPri();
+FunctionPass *llvm::createRISCVFSAIPDOMLikePass() {
+  return new RISCVFSAIPDOMLike();
 }
