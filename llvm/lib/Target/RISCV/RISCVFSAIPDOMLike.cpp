@@ -66,7 +66,7 @@ bool RISCVFSAIPDOMLike::runOnMachineFunction(MachineFunction &MF) {
   LLVM_DEBUG(
       dbgs() << "------------------------------------------------------------"
                 "\n";
-      dbgs() << "Running RISCVFSAPDOMLike on function: " << MF.getName()
+      dbgs() << "Running RISCVFSAIPDOMLike on function: " << MF.getName()
              << "\n";
       dbgs() << "------------------------------------------------------------"
                 "\n\n\n";);
@@ -96,20 +96,20 @@ bool RISCVFSAIPDOMLike::runOnMachineFunction(MachineFunction &MF) {
         }
         /* clang-format off */ 
         /*
-        // If the current BB appears to be inside a loop, try to insert fsa.pri.raise
+        // If the current BB appears to be inside a loop, try to insert fsa.pri.raise.t
         // at PreHeader of the BB to prevent priority saturation inside loop
         // Consider following mir:
         //    loop:
         //        ....
         //    BLT x5, x6, loop;
-        // We should not insert pri.raise right before BLT, for that would cause priority
+        // We should not insert pri.raise.t right before BLT, for that would cause priority
         // saturation if the loop iteration for a lot of times, the following section
         // is trying to deal it with following order when we find a loop:
         //    1. A set MLoopSet with only a nullptr inside it when init.
         //    2. When Identify a MachineLoop ML, do following:
         //        * If ML is not inside MLoopSet, this is a ML we haven't meet before,
         //          try to locate PreHeader (The BB immediate before the loop) of ML and insert
-        //          pri.raise at the begining of PreHeader (We cannot insert at end of preheader, 
+        //          pri.raise.t at the begining of PreHeader (We cannot insert at end of preheader, 
         //          cause we may insert inst. after the terminator of that BB, and may cause such 
         //          inst. to be a dead code which won't ever be executed.)
         //          While locating PreHeader, we also check following:
@@ -124,9 +124,9 @@ bool RISCVFSAIPDOMLike::runOnMachineFunction(MachineFunction &MF) {
         //        * If we cannot locate the PreHeader of ML, simply skip this loop.
         //        * No matter the PreHeader is located or not, insert ML into MLoopSet.
         //        * If ML is inside MLoopSet, means this is a ML we have already try to guarded it by 
-        //          pri.raise, pri.lower before, goto 3. for other processing.
+        //          pri.raise.t, pri.lower.t before, goto 3. for other processing.
         //    3. If cond branch is inside loop, try find a PDom inside the same loop.
-        //          If founded, insert pri.raise/lower. Else skip the branch
+        //          If founded, insert pri.raise/lower.t. Else skip the branch
         //          We also need to ensure that PDom->getBlock() won't be MBB itself.
         */
         /* clang-format on */
@@ -179,9 +179,8 @@ bool RISCVFSAIPDOMLike::runOnMachineFunction(MachineFunction &MF) {
                 continue;
               }
               // Else: insert pri
-              LLVM_DEBUG(
-                  dbgs()
-                      << "Inserting pri raise at begining of loopPreHeader\n";);
+              LLVM_DEBUG(dbgs() << "Inserting pri.raise.t at begining of "
+                                   "loopPreHeader\n";);
               BuildMI(*PreHeader, LoopHeadFisrt, LoopHeadFisrt.getDebugLoc(),
                       TII->get(RISCV::FSA_PRI_RAISE));
               goto InsertLowerInst;
@@ -194,7 +193,7 @@ bool RISCVFSAIPDOMLike::runOnMachineFunction(MachineFunction &MF) {
           }
 
           // 3. If cond branch is inside loop, try find a PDom inside the same
-          // loop If founded, insert pri.raise/lower. Else skip the branch We
+          // loop If founded, insert pri.raise/lower.t. Else skip the branch We
           // also need to ensure that PDom->getBlock() won't be MBB itself.
           do {
             PDRBB = PDomNode->getBlock();
@@ -203,7 +202,7 @@ bool RISCVFSAIPDOMLike::runOnMachineFunction(MachineFunction &MF) {
 
           if (PDRBB != &MBB) {
             LLVM_DEBUG(
-                dbgs() << "Inserting pri raise before branch instruction\n";);
+                dbgs() << "Inserting pri.raise.t before branch instruction\n";);
             BuildMI(MBB, MI, MI.getDebugLoc(), TII->get(RISCV::FSA_PRI_RAISE));
             goto InsertLowerInst;
           } else {
@@ -212,15 +211,15 @@ bool RISCVFSAIPDOMLike::runOnMachineFunction(MachineFunction &MF) {
             continue;
           }
         }
-        // Insert a pri raise befor branch inst if MBB is not in loop
+        // Insert a pri.raise.t befor branch inst if MBB is not in loop
         LLVM_DEBUG(
-            dbgs() << "Inserting pri raise before branch instruction\n";);
+            dbgs() << "Inserting pri.raise.t before branch instruction\n";);
         BuildMI(MBB, MI, MI.getDebugLoc(), TII->get(RISCV::FSA_PRI_RAISE));
       InsertLowerInst:
         MachineInstr &PDRBBFirst = PDRBB->front();
-        LLVM_DEBUG(dbgs() << "Insert pri lower at " << PDRBB->getFullName()
+        LLVM_DEBUG(dbgs() << "Insert pri.lower.t at " << PDRBB->getFullName()
                           << "\n\n";);
-        // Insert fsa.pri.lower at the begining of IPDom
+        // Insert fsa.pri.lower.t at the begining of IPDom
         BuildMI(*PDRBB, PDRBBFirst, PDRBBFirst.getDebugLoc(),
                 TII->get(RISCV::FSA_PRI_LOWER));
         MadeChange = true;
@@ -228,7 +227,8 @@ bool RISCVFSAIPDOMLike::runOnMachineFunction(MachineFunction &MF) {
       }
     }
   }
-  LLVM_DEBUG(dbgs() << InsertPair << " pair(s) of pri raise/lower on function: "
+  LLVM_DEBUG(dbgs() << InsertPair
+                    << " pair(s) of pri.raise/lower.t on function: "
                     << MF.getName() << "\n\n\n";);
   return MadeChange;
 }
