@@ -60,6 +60,7 @@ add_llvm_target(RISCVCodeGen
   RISCVFSAInsertFunctPri.cpp
   RISCVFSARemoveRedundantPri.cpp
   RISCVFSAInsertMinPCPri.cpp
+  RISCVFSAIPDOMLike.cpp
   GISel/RISCVCallLowering.cpp
   GISel/RISCVInstructionSelector.cpp
   GISel/RISCVLegalizerInfo.cpp

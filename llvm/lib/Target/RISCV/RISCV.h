@@ -108,6 +108,9 @@ void initializeRISCVFSAInsertMinPCPriPass(PassRegistry &);
 
 FunctionPass *createRISCVFSAPDomLevelBasedPriorityPass();
 void initializeRISCVFSAPDomLevelBasedPriorityPass(PassRegistry &);
+
+FunctionPass *createRISCVFSAIPDOMLikePass();
+void initializeRISCVFSAIPDOMLikePass(PassRegistry &);
 } // namespace llvm
 
 #endif

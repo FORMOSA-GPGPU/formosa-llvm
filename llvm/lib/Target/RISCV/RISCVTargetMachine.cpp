@@ -119,10 +119,16 @@ static cl::opt<bool, true> EnableFSAICSFirst(
     "fsa-ics-first", cl::Hidden,
     cl::desc("Enable the ICS-First pass for divergence handling"),
     cl::location(UseFSAICSFirst));
-    
+
 static cl::opt<bool> EnableFSAPDomLevelBasedPriority(
-    "fsa-pdom-level-priority", cl::Hidden,
-    cl::desc("Enable pdom lever based priority insertion pass"), cl::init(false));
+    "fsa-pdom-level", cl::Hidden,
+    cl::desc("Enable PDOM level based pass for divergence handling"),
+    cl::init(false));
+
+static cl::opt<bool> EnableFSAIPDOMLike(
+    "fsa-ipdom-like", cl::Hidden,
+    cl::desc("Enable the IPDOM-like pass for divergence handling"),
+    cl::init(false));
 
 extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeRISCVTarget() {
   RegisterTargetMachine<RISCVTargetMachine> X(getTheRISCV32Target());
@@ -154,6 +160,7 @@ extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeRISCVTarget() {
   initializeRISCVFSARemoveRedundantPriPass(*PR);
   initializeRISCVFSAInsertMinPCPriPass(*PR);
   initializeRISCVFSAPDomLevelBasedPriorityPass(*PR);
+  initializeRISCVFSAIPDOMLikePass(*PR);
 }
 
 static StringRef computeDataLayout(const Triple &TT,
@@ -585,11 +592,16 @@ void RISCVPassConfig::addPreEmitPass2() {
 
   if (EnableFSAPDomLevelBasedPriority) {
     MCSubtargetInfo STI = *TM->getMCSubtargetInfo();
-    if (!STI.hasFeature(RISCV::FeatureVendorXFormosaPri)) {
-      report_fatal_error("FSA PDom level based priority insertion requires XFormosaPri "
-                         "extension");
-    }
+    if (!STI.hasFeature(RISCV::FeatureVendorXFormosaPri))
+      report_fatal_error("FSA PDOM level based requires XFormosaPri extension");
     addPass(createRISCVFSAPDomLevelBasedPriorityPass());
+  }
+
+  if (EnableFSAIPDOMLike) {
+    MCSubtargetInfo STI = *TM->getMCSubtargetInfo();
+    if (!STI.hasFeature(RISCV::FeatureVendorXFormosaPri))
+      report_fatal_error("FSA IPDOM-like pass requires XFormosaPri extension");
+    addPass(createRISCVFSAIPDOMLikePass());
   }
 }
 
