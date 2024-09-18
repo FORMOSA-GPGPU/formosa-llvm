@@ -41,13 +41,13 @@ char RISCVFSAPDomLevelBasedPriority::ID = 0;
 INITIALIZE_PASS_BEGIN(RISCVFSAPDomLevelBasedPriority, DEBUG_TYPE,
                       "FSA handling PDom priority by inserting fsa.pri "
                       "instructions based on PDom level, use argument "
-                      "-fsa-pdom-level-priority to enable the pass",
+                      "-fsa-pdom-level to enable the pass",
                       false, false)
 INITIALIZE_PASS_DEPENDENCY(MachinePostDominatorTreeWrapperPass)
 INITIALIZE_PASS_END(RISCVFSAPDomLevelBasedPriority, DEBUG_TYPE,
                     "FSA handling PDom priority by inserting fsa.pri "
                     "instructions based on PDom level, use argument "
-                    "-fsa-pdom-level-priority to enable the pass",
+                    "-fsa-pdom-level to enable the pass",
                     false, false)
 
 void RISCVFSAPDomLevelBasedPriority::initialize(MachineFunction &MF) {

@@ -121,12 +121,12 @@ static cl::opt<bool, true> EnableFSAICSFirst(
     cl::location(UseFSAICSFirst));
 
 static cl::opt<bool> EnableFSAPDomLevelBasedPriority(
-    "fsa-pdom-level-priority", cl::Hidden,
-    cl::desc("Enable pdom lever based priority insertion pass"),
+    "fsa-pdom-level", cl::Hidden,
+    cl::desc("Enable PDOM level based pass for divergence handling"),
     cl::init(false));
 
 static cl::opt<bool> EnableFSAIPDOMLike(
-    "fsa-IPDOM-like", cl::Hidden,
+    "fsa-ipdom-like", cl::Hidden,
     cl::desc("Enable the IPDOM-like pass for divergence handling"),
     cl::init(false));
 
@@ -592,11 +592,8 @@ void RISCVPassConfig::addPreEmitPass2() {
 
   if (EnableFSAPDomLevelBasedPriority) {
     MCSubtargetInfo STI = *TM->getMCSubtargetInfo();
-    if (!STI.hasFeature(RISCV::FeatureVendorXFormosaPri)) {
-      report_fatal_error(
-          "FSA PDom level based priority insertion requires XFormosaPri "
-          "extension");
-    }
+    if (!STI.hasFeature(RISCV::FeatureVendorXFormosaPri))
+      report_fatal_error("FSA PDOM level based requires XFormosaPri extension");
     addPass(createRISCVFSAPDomLevelBasedPriorityPass());
   }
 
