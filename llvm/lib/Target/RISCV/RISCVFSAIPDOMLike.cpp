@@ -42,15 +42,15 @@ char RISCVFSAIPDOMLike::ID = 0;
 INITIALIZE_PASS_BEGIN(
     RISCVFSAIPDOMLike, DEBUG_TYPE,
     "FSA divergence handling by inserting fsa.pri instructions, "
-    "use argument -fsa-IPDOM-like to enable the pass", false,
-    false)
+    "use argument -fsa-IPDOM-like to enable the pass",
+    false, false)
 INITIALIZE_PASS_DEPENDENCY(MachinePostDominatorTreeWrapperPass)
 INITIALIZE_PASS_DEPENDENCY(MachineLoopInfoWrapperPass)
 INITIALIZE_PASS_END(
     RISCVFSAIPDOMLike, DEBUG_TYPE,
     "FSA divergence handling by inserting fsa.pri instructions, "
-    "use argument -fsa-IPDOM-like to enable the pass", false,
-    false)
+    "use argument -fsa-IPDOM-like to enable the pass",
+    false, false)
 
 void RISCVFSAIPDOMLike::initialize(MachineFunction &MF) {
   const auto &ST = MF.getSubtarget<RISCVSubtarget>();
