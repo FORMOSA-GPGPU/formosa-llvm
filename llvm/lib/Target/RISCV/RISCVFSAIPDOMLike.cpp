@@ -61,7 +61,7 @@ void RISCVFSAIPDOMLike::initialize(MachineFunction &MF) {
 }
 
 bool RISCVFSAIPDOMLike::runOnMachineFunction(MachineFunction &MF) {
-  LLVM_DEBUG(int InsertPair = 0;);
+  int InsertPair = 0;
   std::set<MachineLoop *> MLoopSet{nullptr};
   LLVM_DEBUG(
       dbgs() << "------------------------------------------------------------"
@@ -83,7 +83,7 @@ bool RISCVFSAIPDOMLike::runOnMachineFunction(MachineFunction &MF) {
       MachineInstr &MI = *I;
       if (MI.isConditionalBranch()) {
         DomTreeNodeBase<MachineBasicBlock> *PDomNode = MPDT->getNode(&MBB);
-        LLVM_DEBUG(auto InstrName = TII->getName(MI.getOpcode()););
+        auto InstrName = TII->getName(MI.getOpcode());
         LLVM_DEBUG(dbgs() << "Locate branch inst " << InstrName
                           << " in BasicBlock " << MBB.getName() << "\n";);
 
@@ -223,7 +223,7 @@ bool RISCVFSAIPDOMLike::runOnMachineFunction(MachineFunction &MF) {
         BuildMI(*PDRBB, PDRBBFirst, PDRBBFirst.getDebugLoc(),
                 TII->get(RISCV::FSA_PRI_LOWER));
         MadeChange = true;
-        LLVM_DEBUG(++InsertPair;);
+        ++InsertPair;
       }
     }
   }
