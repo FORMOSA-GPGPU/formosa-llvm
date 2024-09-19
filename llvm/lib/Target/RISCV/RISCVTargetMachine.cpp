@@ -105,11 +105,6 @@ static cl::opt<bool> EnableVSETVLIAfterRVVRegAlloc(
     cl::init(true));
 
 static cl::opt<bool>
-    EnableFSAFunctionPriority("fsa-function-priority", cl::Hidden,
-                              cl::desc("Enable function priority insertion"),
-                              cl::init(false));
-
-static cl::opt<bool>
     EnableFSAMinPC("fsa-min-pc", cl::Hidden,
                    cl::desc("Enable the MinPC pass for divergence handling"),
                    cl::init(false));
@@ -573,16 +568,7 @@ void RISCVPassConfig::addPreEmitPass2() {
     return MF.getFunction().getParent()->getModuleFlag("kcfi");
   }));
 
-  // Add pass for XFormosaPri
-  if (EnableFSAFunctionPriority) {
-    MCSubtargetInfo STI = *TM->getMCSubtargetInfo();
-    if (!STI.hasFeature(RISCV::FeatureVendorXFormosaPri)) {
-      report_fatal_error("FSA function priority insertion requires XFormosaPri "
-                         "extension");
-    }
-    addPass(createRISCVFSAInsertFunctPriPass());
-  }
-
+  // Add passes for XFormosaPri
   if (EnableFSAMinPC) {
     MCSubtargetInfo STI = *TM->getMCSubtargetInfo();
     if (!STI.hasFeature(RISCV::FeatureVendorXFormosaPri))
@@ -602,6 +588,19 @@ void RISCVPassConfig::addPreEmitPass2() {
     if (!STI.hasFeature(RISCV::FeatureVendorXFormosaPri))
       report_fatal_error("FSA IPDOM-like pass requires XFormosaPri extension");
     addPass(createRISCVFSAIPDOMLikePass());
+  }
+
+  bool EnableFSAFunctionPriority =
+      (!EnableFSAIPDOMLike && !EnableFSAICSFirst && EnableFSAMinPC) ||
+      (!EnableFSAIPDOMLike && !EnableFSAICSFirst &&
+       EnableFSAPDomLevelBasedPriority);
+  if (EnableFSAFunctionPriority) {
+    MCSubtargetInfo STI = *TM->getMCSubtargetInfo();
+    if (!STI.hasFeature(RISCV::FeatureVendorXFormosaPri)) {
+      report_fatal_error("FSA function priority insertion requires XFormosaPri "
+                         "extension");
+    }
+    addPass(createRISCVFSAInsertFunctPriPass());
   }
 }
 
