@@ -1,4 +1,9 @@
+workitem/get_global_offset.cl
+workitem/get_group_id.cl
 workitem/get_local_id.cl
+workitem/get_local_size.cl
+workitem/get_num_groups.cl
+workitem/get_work_dim.cl
 math/fma.cl
 synchronization/barrier.cl
 synchronization/work_group_barrier.cl
@@ -90,3 +95,5 @@ synchronization/work_group_barrier.cl
 ../../generic/lib/math/tgamma.cl
 ../../generic/lib/shared/vload.cl
 ../../generic/lib/shared/vstore.cl
+../../generic/lib/workitem/get_global_id.cl
+../../generic/lib/workitem/get_global_size.cl
