@@ -257,13 +257,7 @@ foreach( t ${LIBCLC_TARGETS_TO_BUILD} )
 
   if( ${ARCH} STREQUAL riscv64 )
     list( APPEND dirs formosa-gpgpu )
-    # add files listed in EXCLUDE list to exclude_files
-    file( READ ${CMAKE_CURRENT_SOURCE_DIR}/formosa-gpgpu/lib/EXCLUDES exclude_list )
-    # print each line of the file
-    string( REPLACE "\n" ";" exclude_list ${exclude_list} )
-    foreach( e ${exclude_list} )
-      list( APPEND exclude_files ${e} )
-    endforeach()
+    file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/formosa-gpgpu/lib/EXCLUDES" exclude_files)
   endif()
 
   if ( NOT ${ARCH} STREQUAL spirv AND 
@@ -320,21 +314,13 @@ foreach( t ${LIBCLC_TARGETS_TO_BUILD} )
     string( REPLACE "\n" ";" file_list ${file_list} )
     get_filename_component( dir ${l} DIRECTORY )
     foreach( f ${file_list} )
-      set( has_exclude_files FALSE )
       
-      # Check if the file is in the exclude list
-      foreach( e ${exclude_files} )
-        if( ${dir}/${f} STREQUAL ${e} )
-          message( STATUS "  excluding: ${e}" )
-          set( has_exclude_files TRUE )
-        endif()
-      endforeach()
-      
-      # Skip the file if it is in the exclude list
-      if( has_exclude_files )
-        continue()
+      if("${dir}/${f}" IN_LIST exclude_files)
+          # Skip the file if it is in exclude list
+          message( STATUS "  excluding: ${dir}/${f}" )
+          continue()
       endif()
-      
+
       # Only add each file once, so that targets can 'specialize' builtins
       if( NOT ${f} IN_LIST objects )
         list( APPEND objects ${f} )
