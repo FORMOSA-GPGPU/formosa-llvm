@@ -5,5 +5,7 @@ workitem/get_local_size.cl
 workitem/get_num_groups.cl
 workitem/get_work_dim.cl
 math/fma.cl
+math/sqrt.cl
+math/rsqrt.cl
 synchronization/barrier.cl
 synchronization/work_group_barrier.cl
