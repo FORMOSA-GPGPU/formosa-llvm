@@ -8,5 +8,7 @@ generic/lib/math/native_log2.cl
 generic/lib/math/native_exp.cl
 generic/lib/math/native_exp2.cl
 generic/lib/math/fma.cl
+generic/lib/math/sqrt.cl
+generic/lib/math/rsqrt.cl
 generic/lib/math/clc_sqrt.cl
 generic/lib/integer/popcount.cl
