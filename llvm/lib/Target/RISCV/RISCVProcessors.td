@@ -90,6 +90,7 @@ def FORMOSA_GPGPU : RISCVProcessorModel<"formosa-gpgpu",
                                          FeatureStdExtZicsr,
                                          FeatureStdExtZifencei,
                                          FeatureStdExtM,
+                                         FeatureStdExtZdinx,
                                          FeatureStdExtZicond,
                                          FeatureVendorXFormosaPri,
                                          FeatureVendorXFormosaBar]>;
