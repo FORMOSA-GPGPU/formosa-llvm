@@ -471,3 +471,5 @@ defm FSA_XCLL     : RISCVFSACSR<"xcll", 0xFE2>;
 defm FSA_XCLS     : RISCVFSACSR<"xcls", 0xFC5>;
 defm FSA_XCLW     : RISCVFSACSR<"xclw", 0xFC8>;
 defm FSA_XCLGS    : RISCVFSACSR<"xclgs", 0xFC2>;
+def  FSA_XKERNELPC     : SysReg<"xkernelpc", 0xFE5>;
+def  FSA_XKERNELARG    : SysReg<"xkernelarg", 0xFE7>;
