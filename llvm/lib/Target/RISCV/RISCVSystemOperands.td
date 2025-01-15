@@ -464,12 +464,22 @@ multiclass RISCVFSACSR<string mnemonic, int base> {
   def Y : SysReg<!strconcat(mnemonic, "y"), !add(base, 1)>;
   def Z : SysReg<!strconcat(mnemonic, "z"), !add(base, 2)>;
 }
-def  FSA_XTID     : SysReg<"xtid", 0xFE0>;
-def  FSA_XTSTATUS : SysReg<"xtstatus", 0xFE1>;
-def  FSA_XDIM     : SysReg<"xdim", 0xFCB>;
-defm FSA_XCLL     : RISCVFSACSR<"xcll", 0xFE2>;
-defm FSA_XCLS     : RISCVFSACSR<"xcls", 0xFC5>;
-defm FSA_XCLW     : RISCVFSACSR<"xclw", 0xFC8>;
-defm FSA_XCLGS    : RISCVFSACSR<"xclgs", 0xFC2>;
-def  FSA_XKERNELPC     : SysReg<"xkernelpc", 0xFE5>;
-def  FSA_XKERNELARG    : SysReg<"xkernelarg", 0xFE7>;
+
+// Formosa per-core CSRs
+def  FSA_XCID       : SysReg<"xcid", 0xFC0>;
+def  FSA_XNW        : SysReg<"xnw", 0xFC1>;
+defm FSA_XCLGS      : RISCVFSACSR<"xclgs", 0xFC2>;
+defm FSA_XCLS       : RISCVFSACSR<"xcls", 0xFC5>;
+defm FSA_XCLW       : RISCVFSACSR<"xclw", 0xFC8>;
+def  FSA_XDIM       : SysReg<"xdim", 0xFCB>;
+
+// Formosa per-warp CSRs
+def  FSA_XWID       : SysReg<"xwid", 0xFD0>;
+def  FSA_XNT        : SysReg<"xnt", 0xFD1>;
+
+// Formosa per-thread CSRs
+def  FSA_XTID       : SysReg<"xtid", 0xFE0>;
+def  FSA_XTSTATUS   : SysReg<"xtstatus", 0xFE1>;
+defm FSA_XCLL       : RISCVFSACSR<"xcll", 0xFE2>;
+def  FSA_XKERNELPC  : SysReg<"xkernelpc", 0xFE5>;
+def  FSA_XKERNELARG : SysReg<"xkernelarg", 0xFE7>;
