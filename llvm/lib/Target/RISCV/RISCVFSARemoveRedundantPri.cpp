@@ -61,6 +61,32 @@ bool RISCVFSARemoveRedundantPri::runOnMachineFunction(MachineFunction &MF) {
         }
       }
     }
+  } else {
+    // Non-divergent function, remove unecessary priority instructions
+    for (auto &MBB : MF) {
+      for (auto &MI : MBB) {
+        unsigned Opcode = MI.getOpcode();
+        if (Opcode == RISCV::FSA_PRI_RAISE) {
+          // Check if the next instruction is a FSA_PRI_LOWER
+          MachineBasicBlock::iterator NextMI = std::next(MI.getIterator());
+          if (NextMI != MBB.end() &&
+              NextMI->getOpcode() == RISCV::FSA_PRI_LOWER) {
+            WorkList.push_back(&MI);
+            WorkList.push_back(&*NextMI);
+          }
+        }
+
+        if (Opcode == RISCV::FSA_PRI_RAISE_F) {
+          // Check if the next instruction is a FSA_PRI_LOWER_F
+          MachineBasicBlock::iterator NextMI = std::next(MI.getIterator());
+          if (NextMI != MBB.end() &&
+              NextMI->getOpcode() == RISCV::FSA_PRI_LOWER_F) {
+            WorkList.push_back(&MI);
+            WorkList.push_back(&*NextMI);
+          }
+        }
+      }
+    }
   }
 
   while (!WorkList.empty()) {
