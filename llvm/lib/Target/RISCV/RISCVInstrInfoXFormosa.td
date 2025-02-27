@@ -80,22 +80,26 @@ def : Pat<(int_riscv_fsa_pri_reset), (FSA_PRI_RESET)>;
 def : PatUImm6UImm6<int_riscv_fsa_barrier, FSA_BAR>;
 def : PatUImm6<int_riscv_fsa_pri_set, FSA_PRI_SET>;
 
-def : Pat<(i64 (int_riscv_fsa_local_id_x)),    (CSRRS FSA_XCLLX.Encoding,    (XLenVT X0))>;
-def : Pat<(i64 (int_riscv_fsa_local_id_y)),    (CSRRS FSA_XCLLY.Encoding,    (XLenVT X0))>;
-def : Pat<(i64 (int_riscv_fsa_local_id_z)),    (CSRRS FSA_XCLLZ.Encoding,    (XLenVT X0))>;
+def : Pat<(i64 (int_riscv_fsa_local_id_x)),      (CSRRS FSA_XCLLX.Encoding,    (XLenVT X0))>;
+def : Pat<(i64 (int_riscv_fsa_local_id_y)),      (CSRRS FSA_XCLLY.Encoding,    (XLenVT X0))>;
+def : Pat<(i64 (int_riscv_fsa_local_id_z)),      (CSRRS FSA_XCLLZ.Encoding,    (XLenVT X0))>;
 
-def : Pat<(i64 (int_riscv_fsa_local_size_x)),  (CSRRS FSA_XCLSX.Encoding,    (XLenVT X0))>;
-def : Pat<(i64 (int_riscv_fsa_local_size_y)),  (CSRRS FSA_XCLSY.Encoding,    (XLenVT X0))>;
-def : Pat<(i64 (int_riscv_fsa_local_size_z)),  (CSRRS FSA_XCLSZ.Encoding,    (XLenVT X0))>;
+def : Pat<(i64 (int_riscv_fsa_local_size_x)),    (CSRRS FSA_XCLSX.Encoding,    (XLenVT X0))>;
+def : Pat<(i64 (int_riscv_fsa_local_size_y)),    (CSRRS FSA_XCLSY.Encoding,    (XLenVT X0))>;
+def : Pat<(i64 (int_riscv_fsa_local_size_z)),    (CSRRS FSA_XCLSZ.Encoding,    (XLenVT X0))>;
 
-def : Pat<(i64 (int_riscv_fsa_global_size_x)), (CSRRS FSA_XCLGSX.Encoding,   (XLenVT X0))>;
-def : Pat<(i64 (int_riscv_fsa_global_size_y)), (CSRRS FSA_XCLGSY.Encoding,   (XLenVT X0))>;
-def : Pat<(i64 (int_riscv_fsa_global_size_z)), (CSRRS FSA_XCLGSZ.Encoding,   (XLenVT X0))>;
+def : Pat<(i64 (int_riscv_fsa_global_size_x)),   (CSRRS FSA_XCLGSX.Encoding,   (XLenVT X0))>;
+def : Pat<(i64 (int_riscv_fsa_global_size_y)),   (CSRRS FSA_XCLGSY.Encoding,   (XLenVT X0))>;
+def : Pat<(i64 (int_riscv_fsa_global_size_z)),   (CSRRS FSA_XCLGSZ.Encoding,   (XLenVT X0))>;
 
-def : Pat<(i64 (int_riscv_fsa_group_id_x)),    (CSRRS FSA_XCLWX.Encoding,    (XLenVT X0))>;
-def : Pat<(i64 (int_riscv_fsa_group_id_y)),    (CSRRS FSA_XCLWY.Encoding,    (XLenVT X0))>;
-def : Pat<(i64 (int_riscv_fsa_group_id_z)),    (CSRRS FSA_XCLWZ.Encoding,    (XLenVT X0))>;
+def : Pat<(i64 (int_riscv_fsa_global_offset_x)), (CSRRS FSA_XCLGOFFX.Encoding, (XLenVT X0))>;
+def : Pat<(i64 (int_riscv_fsa_global_offset_y)), (CSRRS FSA_XCLGOFFY.Encoding, (XLenVT X0))>;
+def : Pat<(i64 (int_riscv_fsa_global_offset_z)), (CSRRS FSA_XCLGOFFZ.Encoding, (XLenVT X0))>;
 
-def : Pat<(i64 (int_riscv_fsa_thread_id)),     (CSRRS FSA_XTID.Encoding,     (XLenVT X0))>;
-def : Pat<(i64 (int_riscv_fsa_thread_status)), (CSRRS FSA_XTSTATUS.Encoding, (XLenVT X0))>;
-def : Pat<(i64 (int_riscv_fsa_xdim)),          (CSRRS FSA_XDIM.Encoding,     (XLenVT X0))>;
+def : Pat<(i64 (int_riscv_fsa_group_id_x)),      (CSRRS FSA_XCLWX.Encoding,    (XLenVT X0))>;
+def : Pat<(i64 (int_riscv_fsa_group_id_y)),      (CSRRS FSA_XCLWY.Encoding,    (XLenVT X0))>;
+def : Pat<(i64 (int_riscv_fsa_group_id_z)),      (CSRRS FSA_XCLWZ.Encoding,    (XLenVT X0))>;
+
+def : Pat<(i64 (int_riscv_fsa_thread_id)),       (CSRRS FSA_XTID.Encoding,     (XLenVT X0))>;
+def : Pat<(i64 (int_riscv_fsa_thread_status)),   (CSRRS FSA_XTSTATUS.Encoding, (XLenVT X0))>;
+def : Pat<(i64 (int_riscv_fsa_xdim)),            (CSRRS FSA_XDIM.Encoding,     (XLenVT X0))>;

@@ -20,6 +20,20 @@
           inherit formosa-llvm;
           default = formosa-llvm;
         };
+
+        devShells.default = pkgs.mkShell.override
+        {
+          stdenv = pkgs.gccStdenv;
+        }
+        {
+          packages = with pkgs; [
+            cmake
+            ninja
+            python3
+            pkg-config
+            zlib
+          ];
+        };
       }
     );
 }

@@ -469,9 +469,10 @@ multiclass RISCVFSACSR<string mnemonic, int base> {
 def  FSA_XCID       : SysReg<"xcid", 0xFC0>;
 def  FSA_XNW        : SysReg<"xnw", 0xFC1>;
 defm FSA_XCLGS      : RISCVFSACSR<"xclgs", 0xFC2>;
-defm FSA_XCLS       : RISCVFSACSR<"xcls", 0xFC5>;
-defm FSA_XCLW       : RISCVFSACSR<"xclw", 0xFC8>;
-def  FSA_XDIM       : SysReg<"xdim", 0xFCB>;
+defm FSA_XCLGOFF    : RISCVFSACSR<"xclgoff", 0xFC5>;
+defm FSA_XCLS       : RISCVFSACSR<"xcls", 0xFC8>;
+defm FSA_XCLW       : RISCVFSACSR<"xclw", 0xFCB>;
+def  FSA_XDIM       : SysReg<"xdim", 0xFCE>;
 
 // Formosa per-warp CSRs
 def  FSA_XWID       : SysReg<"xwid", 0xFD0>;
