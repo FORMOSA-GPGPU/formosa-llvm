@@ -156,6 +156,7 @@ multiclass RISCVFSACSRBuiltin {
 }
 
 defm fsa_global_size: RISCVFSACSRBuiltin;
+defm fsa_global_offset : RISCVFSACSRBuiltin;
 defm fsa_group_id : RISCVFSACSRBuiltin;
 defm fsa_local_id : RISCVFSACSRBuiltin;
 defm fsa_local_size : RISCVFSACSRBuiltin;
