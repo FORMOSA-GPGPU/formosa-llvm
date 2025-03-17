@@ -28,8 +28,8 @@ stdenv.mkDerivation {
     	    -D CMAKE_CXX_COMPILER_WORKS=1 \
     	    -D CMAKE_SIZEOF_VOID_P=4 \
     	    -D CMAKE_C_COMPILER="${formosa-llvm}/bin/clang" \
-    	    -D CMAKE_C_FLAGS="-march="rv64im_zicsr_zicond" -mabi=lp64 -mno-relax -mcmodel=medany" \
-    	    -D CMAKE_ASM_FLAGS="-march="rv64im_zicsr_zicond" -mabi=lp64 -mno-relax -mcmodel=medany" \
+    	    -D CMAKE_C_FLAGS="-march="rv64imfd_zicsr_zicond" -mabi=lp64 -mno-relax -mcmodel=medany" \
+    	    -D CMAKE_ASM_FLAGS="-march="rv64imfd_zicsr_zicond" -mabi=lp64 -mno-relax -mcmodel=medany" \
     	    -D CMAKE_AR=${formosa-llvm}/bin/llvm-ar \
     	    -D CMAKE_NM=${formosa-llvm}/bin/llvm-nm \
     	    -D CMAKE_RANLIB=${formosa-llvm}/bin/llvm-ranlib \
