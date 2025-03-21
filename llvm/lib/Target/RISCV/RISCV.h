@@ -125,6 +125,9 @@ void initializeRISCVFSAPDomLevelBasedPriorityPass(PassRegistry &);
 
 FunctionPass *createRISCVFSAIPDOMLikePass();
 void initializeRISCVFSAIPDOMLikePass(PassRegistry &);
+
+FunctionPass *createRISCVFSAGreedyPDomLevelPass();
+void initializeRISCVFSAGreedyPDomLevelPass(PassRegistry &);
 } // namespace llvm
 
 #endif
