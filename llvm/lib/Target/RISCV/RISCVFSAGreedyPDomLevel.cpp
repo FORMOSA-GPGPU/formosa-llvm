@@ -1,6 +1,7 @@
 #include "RISCVInstrInfo.h"
 #include "RISCVRegisterInfo.h"
 #include "RISCVSubtarget.h"
+#include "llvm/CodeGen/MachineBasicBlock.h"
 #include "llvm/CodeGen/MachineDominators.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
@@ -8,7 +9,9 @@
 #include "llvm/CodeGen/Passes.h"
 #include "llvm/InitializePasses.h"
 
+#include <cstdint>
 #include <iterator>
+#include <sys/types.h>
 using namespace llvm;
 #define DEBUG_TYPE "RISCVFSAGreedyPDomLevel"
 
@@ -100,7 +103,8 @@ bool RISCVFSAGreedyPDomLevel::runOnMachineFunction(MachineFunction &MF) {
         }
     }
   }
-
+  std::set<int> MBBSet;
+  std::unordered_map<int, uint64_t> MBBPriMap;
   LastPri = 0;
   PDomLevel = 0;
   for (MachineBasicBlock &MBB : MF) {
@@ -122,14 +126,77 @@ bool RISCVFSAGreedyPDomLevel::runOnMachineFunction(MachineFunction &MF) {
       report_fatal_error("Number of PDom level exceeds 63, cannot insert "
                          "fsa.pri.set instructions");
     }
-    uint64_t FinalLevel = PDomLevel;
+    uint64_t FinalPri = MaxReconvPri + 1;
+    bool NeedInsertion = false;
 
-    if(MBB.pred_size() == 1) {
-        FinalLevel += MaxReconvPri;
+    // If one of the successor is a reconv point,
+    // we need to insert pri inst
+    for(MachineBasicBlock *Succ: MBB.successors()) {
+      if(Succ->pred_size() > 1) {
+        NeedInsertion = true;
+      }
     }
-    BuildMI(MBB, MBB.begin(), MBB.findDebugLoc(MBB.begin()),
-            TII->get(RISCV::FSA_PRI_SET))
-        .addImm(FinalLevel);
+
+    int MBBNum = MBB.getNumber();
+    // If current bb is a reconv point, we need to insert pri inst
+    // with pri <= MaxReconvPri
+    if(MBB.pred_size() > 1) {
+      NeedInsertion = true;
+      if(PDomLevel < MaxReconvPri)
+        FinalPri = PDomLevel;
+      else
+        FinalPri = MaxReconvPri;
+    } else {
+      uint64_t PredPri = 0;
+      if (MBB.pred_size() == 1) {
+        MachineBasicBlock *PredMBB = MBB.getSinglePredecessor();
+        int PredMBBNum = PredMBB->getNumber();
+        bool FoundInSet = MBBSet.find(PredMBBNum) != MBBSet.end();
+        while(!FoundInSet && PredMBB->pred_size() == 1) {
+          PredMBB = PredMBB->getSinglePredecessor();
+          PredMBBNum = PredMBB->getNumber();
+          FoundInSet = MBBSet.find(PredMBBNum) != MBBSet.end();
+        }
+        
+        // Get Pred's Number
+        if(FoundInSet)
+          PredPri = MBBPriMap[PredMBBNum];
+        NeedInsertion = (PredPri != FinalPri);
+      }
+      uint64_t SuccPri = -1ULL;
+      if(MBB.succ_size() == 1 && PredPri != 0) {
+        MachineBasicBlock *SuccMBB = MBB.getSingleSuccessor();
+        int SuccMBBNum = SuccMBB->getNumber();
+        bool FoundInSet = MBBSet.find(SuccMBBNum) != MBBSet.end();
+        while(!FoundInSet && SuccMBB->succ_size() == 1) {
+          SuccMBB = SuccMBB->getSingleSuccessor();
+          SuccMBBNum = SuccMBB->getNumber();
+          FoundInSet = MBBSet.find(SuccMBBNum) != MBBSet.end();
+        }
+
+        // Get Succ's Number
+        if(FoundInSet)
+          SuccPri = MBBPriMap[SuccMBBNum];
+        // Only need to insert if the priority of the successor is
+        // greater than the priority of the predecessor in the pri
+        // transit chain
+        NeedInsertion = (SuccPri > PredPri);
+      }
+    }
+
+    // at exit point, give the lowest priority
+    if(MBB.succ_size() == 0) {
+      NeedInsertion = true;
+      FinalPri = 1;
+    }
+    
+    if(NeedInsertion){
+      BuildMI(MBB, MBB.begin(), MBB.findDebugLoc(MBB.begin()),
+              TII->get(RISCV::FSA_PRI_SET))
+              .addImm(FinalPri);
+      MBBSet.insert(MBBNum);
+      MBBPriMap[MBBNum] = FinalPri;
+    }
     MadeChange = true;
   }
 
