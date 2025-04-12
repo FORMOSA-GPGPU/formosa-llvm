@@ -177,6 +177,7 @@ extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeRISCVTarget() {
   initializeRISCVFSAPDomLevelBasedPriorityPass(*PR);
   initializeRISCVFSAGreedyPDomLevelPass(*PR);
   initializeRISCVFSAIPDOMLikePass(*PR);
+  initializeRISCVFSACleanUpPass(*PR);
 }
 
 static StringRef computeDataLayout(const Triple &TT,
@@ -654,7 +655,7 @@ void RISCVPassConfig::addPreEmitPass2() {
       report_fatal_error("FSA greedy pass requires XFormosaPri extension");
     addPass(createRISCVFSAGreedyPDomLevelPass());
   }
-  bool FSAUseRelativePri = EnableFSAIPDOMLike;
+  bool FSAUseRelativePri = EnableFSAIPDOMLike || UseFSAICSFirst;
   bool FSAUseAbsPri =
       (EnableFSAMinPC || EnableFSAPDomLevelBasedPriority || EnableFSAGreedy);
   bool EnableFSAFunctionPriority = !FSAUseRelativePri && FSAUseAbsPri;
@@ -665,6 +666,13 @@ void RISCVPassConfig::addPreEmitPass2() {
                          "extension");
     }
     addPass(createRISCVFSAInsertFunctPriPass());
+  }
+
+  if (FSAUseRelativePri) {
+    MCSubtargetInfo STI = *TM->getMCSubtargetInfo();
+    if (!STI.hasFeature(RISCV::FeatureVendorXFormosaPri))
+      report_fatal_error("FSA clean up pass requires XFormosaPri extension");
+    addPass(createRISCVFSACleanUpPass());
   }
 }
 

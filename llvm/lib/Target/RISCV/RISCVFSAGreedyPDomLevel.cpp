@@ -1,3 +1,4 @@
+#include "MCTargetDesc/RISCVMCTargetDesc.h"
 #include "RISCVInstrInfo.h"
 #include "RISCVRegisterInfo.h"
 #include "RISCVSubtarget.h"
@@ -8,10 +9,20 @@
 #include "llvm/CodeGen/MachinePostDominators.h"
 #include "llvm/CodeGen/Passes.h"
 #include "llvm/InitializePasses.h"
+#include "llvm/CodeGen/MachineLoopInfo.h"
+#include "llvm/ADT/PostOrderIterator.h"
+#include "llvm/ADT/DepthFirstIterator.h"
 
 #include <cstdint>
+#include <cstdio>
 #include <iterator>
 #include <sys/types.h>
+
+#include <algorithm>
+#include <iterator>
+#include <unordered_map>
+#include <unordered_set>
+#include <queue>
 using namespace llvm;
 #define DEBUG_TYPE "RISCVFSAGreedyPDomLevel"
 
@@ -22,10 +33,19 @@ private:
   const RISCVRegisterInfo *TRI;
   const RISCVInstrInfo *TII;
   MachinePostDominatorTree *MPDT;
+  MachineLoopInfo *MLI;
 
 public:
   static char ID;
   RISCVFSAGreedyPDomLevel() : MachineFunctionPass(ID) {}
+  int bfsDepth(const MachineBasicBlock* Start, bool FollowSucc,
+    const std::unordered_set<MachineBasicBlock *>& ReconvBBSet, 
+    const std::unordered_map<const MachineBasicBlock *, int>& DistFromEntry,
+    const std::unordered_map<const MachineBasicBlock *, int>& DistFromExit
+  );
+  std::unordered_map <const MachineBasicBlock*, int> bfsDistFromEntry(const MachineBasicBlock &EntryMBB);
+  std::unordered_map <const MachineBasicBlock*, int> bfsDistFromExit(const std::unordered_set<MachineBasicBlock *>& ExitMBBSet);
+  
   void initialize(MachineFunction &F);
   bool runOnMachineFunction(MachineFunction &MF) override;
   StringRef getPassName() const override {
@@ -33,6 +53,7 @@ public:
   }
   void getAnalysisUsage(AnalysisUsage &AU) const override {
     AU.addRequired<MachinePostDominatorTreeWrapperPass>();
+    AU.addRequired<MachineLoopInfoWrapperPass>();
     MachineFunctionPass::getAnalysisUsage(AU);
   }
 };
@@ -40,8 +61,7 @@ public:
 } // namespace
 
 char RISCVFSAGreedyPDomLevel::ID = 0;
-uint64_t MaxReconvPri = 0;
-uint64_t LastPri = 0;
+
 
 INITIALIZE_PASS_BEGIN(RISCVFSAGreedyPDomLevel, DEBUG_TYPE,
                       "FSA handling PDom priority by inserting fsa.pri "
@@ -62,6 +82,107 @@ void RISCVFSAGreedyPDomLevel::initialize(MachineFunction &MF) {
   TRI = ST.getRegisterInfo();
 }
 
+  
+int RISCVFSAGreedyPDomLevel::bfsDepth(const MachineBasicBlock* Start, bool FollowSucc,
+  const std::unordered_set<MachineBasicBlock *>& ReconvBBSet, 
+  const std::unordered_map<const MachineBasicBlock* , int>& DistFromEntry,
+  const std::unordered_map<const MachineBasicBlock* , int>& DistFromExit) {
+  printf("BFS for BB%d\n", Start->getNumber());
+  int MaxDepth = 2;
+  std::unordered_map<const MachineBasicBlock*, int> DepthToNearestExit;
+  std::unordered_set<const MachineBasicBlock*> BFSVisted;
+  std::queue<const MachineBasicBlock*> BFSQueue;
+  BFSQueue.push(Start);
+  BFSVisted.insert(Start);
+  DepthToNearestExit[Start] = 2;
+  // Perform BFS, early return if meet end point
+  while(!BFSQueue.empty()) {
+    const MachineBasicBlock *MBB = BFSQueue.front();
+    BFSQueue.pop();
+    int Depth = DepthToNearestExit[MBB];
+    MaxDepth = std::max(Depth, MaxDepth);
+    const auto &FollowMBBs = FollowSucc ? MBB->successors() : MBB->predecessors();
+    int CurDistFromEntry = DistFromEntry.at(MBB);
+    int CurDistFromExit = DistFromExit.at(MBB);
+    for(MachineBasicBlock *FollowMBB : FollowMBBs) {
+      int FollowMBBDistFromEntry = DistFromEntry.at(FollowMBB);
+      int FollowMBBDistFromExit = DistFromExit.at(FollowMBB);
+      printf("CurBB: %d, access BB: %d\n", MBB->getNumber(), FollowMBB->getNumber());
+      printf("CurBB from entry = %d, from exit = %d\n", CurDistFromEntry, CurDistFromExit);
+      printf("access BB%d from entry = %d, from exit = %d\n", FollowMBB->getNumber(), FollowMBBDistFromEntry, FollowMBBDistFromExit);
+      if(!BFSVisted.count(FollowMBB)) {
+
+        // A back edge, skip!!
+        if (FollowMBBDistFromEntry < CurDistFromEntry && FollowMBBDistFromExit > CurDistFromExit) {
+          BFSVisted.insert(FollowMBB);
+          printf("Skip BB%d\n", FollowMBB->getNumber());
+          continue;
+        }
+        if(FollowMBB->pred_size() > 1 && ReconvBBSet.count(FollowMBB)){
+          Depth = MaxDepth + 1;
+          MaxDepth += 1;
+          printf("BB%d's depth become %d by meet BB%d\n", MBB->getNumber(), Depth, FollowMBB->getNumber());
+        }
+        BFSQueue.push(FollowMBB);
+        BFSVisted.insert(FollowMBB);
+        DepthToNearestExit[FollowMBB] = Depth;
+      }
+    }
+  }
+  printf("\n");
+  return MaxDepth;
+}
+
+std::unordered_map <const MachineBasicBlock*, int> RISCVFSAGreedyPDomLevel::bfsDistFromEntry(const MachineBasicBlock &EntryMBB) {
+  // BFS from entry to gather dist from entry to a BB
+  std::unordered_map<const MachineBasicBlock*, int> BFSDistFromEntry;
+  std::unordered_set<const MachineBasicBlock*> BFSVisted;
+  std::queue<const MachineBasicBlock*> BFSQueue;
+  BFSQueue.push(&EntryMBB);
+  BFSVisted.insert(&EntryMBB);
+  BFSDistFromEntry[&EntryMBB] = 0;
+
+  while(!BFSQueue.empty()) {
+    const MachineBasicBlock *MBB = BFSQueue.front();
+    BFSQueue.pop();
+    int Depth = BFSDistFromEntry[MBB];
+    for(const MachineBasicBlock *Pred : MBB->successors()) {
+      if(!BFSVisted.count(Pred)) {
+        BFSQueue.push(Pred);
+        BFSVisted.insert(Pred);
+        BFSDistFromEntry[Pred] = Depth + 1;
+      }
+    }
+  }
+  return BFSDistFromEntry;
+}
+
+std::unordered_map <const MachineBasicBlock*, int> RISCVFSAGreedyPDomLevel::bfsDistFromExit(const std::unordered_set<MachineBasicBlock *>& ExitMBBSet) {
+  // BFS from entry to gather dist from entry to a BB
+  std::unordered_map<const MachineBasicBlock*, int> BFSDistFromExit;
+  std::unordered_set<const MachineBasicBlock*> BFSVisted;
+  std::queue<const MachineBasicBlock*> BFSQueue;
+  for (MachineBasicBlock *MBB : ExitMBBSet) {
+    BFSQueue.push(MBB);
+    BFSVisted.insert(MBB);
+    BFSDistFromExit[MBB] = 0;
+  }
+
+  while(!BFSQueue.empty()) {
+    const MachineBasicBlock *MBB = BFSQueue.front();
+    BFSQueue.pop();
+    int Depth = BFSDistFromExit[MBB];
+    for(const MachineBasicBlock *Pred : MBB->predecessors()) {
+      if(!BFSVisted.count(Pred)) {
+        BFSQueue.push(Pred);
+        BFSVisted.insert(Pred);
+        BFSDistFromExit[Pred] = Depth + 1;
+      }
+    }
+  }
+  return BFSDistFromExit;
+}
+
 bool RISCVFSAGreedyPDomLevel::runOnMachineFunction(MachineFunction &MF) {
   LLVM_DEBUG(
       dbgs() << "------------------------------------------------------------"
@@ -71,6 +192,8 @@ bool RISCVFSAGreedyPDomLevel::runOnMachineFunction(MachineFunction &MF) {
       dbgs() << "------------------------------------------------------------"
                 "\n\n\n";);
   bool MadeChange = false;
+  uint64_t MaxReconvPri = 0;
+  uint64_t LastPri = 0;
   initialize(MF);
   // Skip insertion only when opt level is not none
   bool AllowSkip = (MF.getTarget().getOptLevel() != CodeGenOptLevel::None);
@@ -83,122 +206,177 @@ bool RISCVFSAGreedyPDomLevel::runOnMachineFunction(MachineFunction &MF) {
     return false;
   }
 
+  // auto EntryTermIt = EntryMBB.getFirstTerminator();
 
-  unsigned PDomLevel = 0;
-  for (MachineBasicBlock &MBB : MF) {
-    DomTreeNodeBase<MachineBasicBlock> *PDomNode = MPDT->getNode(&MBB);
-    if (!PDomNode) {
-      LLVM_DEBUG(
-          dbgs() << "Cannot find PDom node for current machine basic block "
-                 << MBB.getName() << "\n";);
-        PDomLevel = LastPri;
-    //   continue;
-    } else {
-        PDomLevel = PDomNode->getLevel();
-        LastPri = PDomLevel;
+
+  std::unordered_set<MachineBasicBlock *> ExitMBBSet;
+  std::unordered_set<MachineBasicBlock *> ReconvBBSet;
+  std::unordered_set<MachineBasicBlock *> ExcludeBBSet;
+  int MergePointCnt = 1;
+  bool InsertInExit = false;
+  for(MachineBasicBlock &MBB: MF) {
+    bool IsExitMBB = MBB.succ_empty();
+    if (IsExitMBB){
+      ExitMBBSet.insert(&MBB);
+      if(MBB.pred_size() > 1)
+        InsertInExit = true;
+      continue;
     }
-    if(MBB.pred_size() > 1) {
-        if(PDomLevel > MaxReconvPri) {
-            MaxReconvPri = PDomLevel;
+
+    if (MBB.pred_size() > 1) {
+      // A SelfLoop reconv edge is meaningless
+      bool HasSelfLoop = false;
+      for (MachineBasicBlock *PredMBB : MBB.predecessors()) {
+        if(PredMBB == &MBB) {
+          HasSelfLoop = true;
+          break;
         }
+      }
+      if(MBB.pred_size() == 2 && HasSelfLoop) {
+        // Divergence is caused by self loop, skip
+        continue;
+      }
+
+      if(MachineLoop *Loop = MLI->getLoopFor(&MBB)) {
+        MachineBasicBlock *LoopHeaderBB = Loop->getHeader();
+        // The headerBB's only reconvgergence edge is a backedge
+        // no need to change priority
+        if(LoopHeaderBB && LoopHeaderBB->pred_size() == 2) {
+          ExcludeBBSet.insert(LoopHeaderBB);
+        }
+      }
+      ReconvBBSet.insert(&MBB);
+      MergePointCnt++;
     }
   }
-  std::set<int> MBBSet;
-  std::unordered_map<int, uint64_t> MBBPriMap;
-  LastPri = 0;
-  PDomLevel = 0;
-  for (MachineBasicBlock &MBB : MF) {
-    DomTreeNodeBase<MachineBasicBlock> *PDomNode = MPDT->getNode(&MBB);
-    if (!PDomNode) {
-      LLVM_DEBUG(
-          dbgs() << "Cannot find PDom node for current machine basic block "
-                 << MBB.getName() << "\n";);
-        PDomLevel = LastPri;
-    } else {
-        PDomLevel = PDomNode->getLevel();
-        LastPri = PDomLevel;
-    }
+  int StartPri = 1 + InsertInExit;
 
-    // set the priority based on the level of IDom
-    LLVM_DEBUG(dbgs() << "BB " << MBB.getName() << " priority: " << PDomLevel
-                      << "\n");
-    if (PDomLevel > 63) {
-      report_fatal_error("Number of PDom level exceeds 63, cannot insert "
-                         "fsa.pri.set instructions");
-    }
-    uint64_t FinalPri = MaxReconvPri + 1;
-    bool NeedInsertion = false;
-
-    // If one of the successor is a reconv point,
-    // we need to insert pri inst
-    for(MachineBasicBlock *Succ: MBB.successors()) {
-      if(Succ->pred_size() > 1) {
-        NeedInsertion = true;
+  if(ReconvBBSet.size()) {
+    for(auto *MBB: post_order(&MF.front())) {
+      if(ReconvBBSet.count(MBB) && !ExcludeBBSet.count(MBB)) {
+        BuildMI(*MBB, MBB->begin(), MBB->findDebugLoc(MBB->begin()),
+        TII->get(RISCV::FSA_PRI_SET)).addImm(StartPri);
+        StartPri++;
+        MadeChange = true;
       }
     }
+  }
 
-    int MBBNum = MBB.getNumber();
-    // If current bb is a reconv point, we need to insert pri inst
-    // with pri <= MaxReconvPri
-    if(MBB.pred_size() > 1) {
-      NeedInsertion = true;
-      if(PDomLevel < MaxReconvPri)
-        FinalPri = PDomLevel;
-      else
-        FinalPri = MaxReconvPri;
-    } else {
-      uint64_t PredPri = 0;
-      if (MBB.pred_size() == 1) {
-        MachineBasicBlock *PredMBB = MBB.getSinglePredecessor();
-        int PredMBBNum = PredMBB->getNumber();
-        bool FoundInSet = MBBSet.find(PredMBBNum) != MBBSet.end();
-        while(!FoundInSet && PredMBB->pred_size() == 1) {
-          PredMBB = PredMBB->getSinglePredecessor();
-          PredMBBNum = PredMBB->getNumber();
-          FoundInSet = MBBSet.find(PredMBBNum) != MBBSet.end();
-        }
-        
-        // Get Pred's Number
-        if(FoundInSet)
-          PredPri = MBBPriMap[PredMBBNum];
-        NeedInsertion = (PredPri != FinalPri);
-      }
-      uint64_t SuccPri = -1ULL;
-      if(MBB.succ_size() == 1 && PredPri != 0) {
-        MachineBasicBlock *SuccMBB = MBB.getSingleSuccessor();
-        int SuccMBBNum = SuccMBB->getNumber();
-        bool FoundInSet = MBBSet.find(SuccMBBNum) != MBBSet.end();
-        while(!FoundInSet && SuccMBB->succ_size() == 1) {
-          SuccMBB = SuccMBB->getSingleSuccessor();
-          SuccMBBNum = SuccMBB->getNumber();
-          FoundInSet = MBBSet.find(SuccMBBNum) != MBBSet.end();
-        }
-
-        // Get Succ's Number
-        if(FoundInSet)
-          SuccPri = MBBPriMap[SuccMBBNum];
-        // Only need to insert if the priority of the successor is
-        // greater than the priority of the predecessor in the pri
-        // transit chain
-        NeedInsertion = (SuccPri > PredPri);
-      }
-    }
-
-    // at exit point, give the lowest priority
-    if(MBB.succ_size() == 0) {
-      NeedInsertion = true;
-      FinalPri = 1;
-    }
-    
-    if(NeedInsertion){
-      BuildMI(MBB, MBB.begin(), MBB.findDebugLoc(MBB.begin()),
-              TII->get(RISCV::FSA_PRI_SET))
-              .addImm(FinalPri);
-      MBBSet.insert(MBBNum);
-      MBBPriMap[MBBNum] = FinalPri;
-    }
+  MachineBasicBlock &EntryMBB = *MF.begin();
+  bool InsertInEntry = (EntryMBB.succ_size() > 1 && MadeChange) || (!MadeChange && InsertInExit);
+  if (InsertInEntry) {
     MadeChange = true;
+    auto EntryTermIt = EntryMBB.getFirstTerminator();
+    BuildMI(EntryMBB, EntryTermIt, EntryMBB.findDebugLoc(EntryTermIt),
+      TII->get(RISCV::FSA_PRI_SET)).addImm(StartPri);
   }
+
+  if (InsertInExit) {
+    for (MachineBasicBlock *MBB : ExitMBBSet) {
+      BuildMI(*MBB, MBB->begin(), MBB->findDebugLoc(MBB->begin()),
+        TII->get(RISCV::FSA_PRI_SET)).addImm(1);
+    }
+  }
+
+  // printf("\nPost order traversal:\n");
+  // for(auto *MBB: post_order(&MF.front())) {
+  //   if(ReconvBBSet.count(MBB))
+  //     printf("Access MBB%d\n", MBB->getNumber());
+  // }
+
+  // printf("\nDFS traversal:\n");
+  // for(auto *MBB: depth_first(&MF.front())) {
+  //   printf("Access MBB%d\n", MBB->getNumber());
+  // }
+
+  
+  std::unordered_map <const MachineBasicBlock*, int> BFSDistFromExit = bfsDistFromExit(ExitMBBSet);
+
+  std::unordered_map <const MachineBasicBlock*, int> BFSDistFromEntry = bfsDistFromEntry(EntryMBB);
+
+
+  // std::map<MachineBasicBlock *, int> MBBPri;
+  // int GlobalMaxPri = 1;
+  // for(MachineBasicBlock *ReconvBB : ReconvBBSet) {
+  //   int MaxPri = 0;
+  //   int ToExitDepth = bfsDepth(ReconvBB, true, ReconvBBSet, BFSDistFromEntry, BFSDistFromExit);
+  //   MaxPri = std::max(MaxPri, ToExitDepth);
+  //   BuildMI(*ReconvBB, ReconvBB->begin(), ReconvBB->findDebugLoc(ReconvBB->begin()),
+  //     TII->get(RISCV::FSA_PRI_SET)).addImm(MaxPri);
+  //   MadeChange = true;
+  //   // MBBPri[ReconvBB] = MaxPri;
+  //   printf("Local max pri: %d\n", MaxPri);
+  //   GlobalMaxPri = std::max(MaxPri, GlobalMaxPri);
+  // }
+  // GlobalMaxPri += 1;
+  // auto EntryTermIt = EntryMBB.getFirstTerminator();
+  // if(MadeChange)
+  //   BuildMI(EntryMBB, EntryTermIt, EntryMBB.findDebugLoc(EntryTermIt),
+  //   TII->get(RISCV::FSA_PRI_SET)).addImm(GlobalMaxPri);
+  // MaxPri += 1;
+  // MachineBasicBlock &EntryMBB = MF.front();
+
+  // for(MachineBasicBlock &MBB : MF) {
+  //   auto TermIt = MBB.getFirstTerminator();
+  //   if (ExitMBBSet.count(&MBB)){
+  //     continue;
+  //   }
+
+  //   if(MBB.pred_size() == 0) {
+  //     // At enter point, set everyone's pri to max
+  //     BuildMI(MBB, MBB.begin(), MBB.findDebugLoc(MBB.begin()),
+  //     TII->get(RISCV::FSA_PRI_SET))
+  //     .addImm(MaxPri);
+  //     MadeChange = true;
+  //   } else if (MBB.pred_size() > 1) {
+  //     int ReconvPri = DepthToNearestExit[&MBB];
+  //     bool HasSelfLoop = false;
+  //     for (MachineBasicBlock *PredMBB : MBB.predecessors()) {
+  //       if(PredMBB == &MBB) {
+  //         HasSelfLoop = true;
+  //         break;
+  //       }
+  //     }
+
+  //     if(MBB.pred_size() == 2 && HasSelfLoop) {
+  //       // Divergence is caused by self loop, skip
+  //       continue;
+  //     }
+
+  //     // At reconv entry, set to relative low priority (cmp to MaxPri)
+  //     BuildMI(MBB, MBB.begin(), MBB.findDebugLoc(MBB.begin()),
+  //             TII->get(RISCV::FSA_PRI_SET))
+  //           .addImm(ReconvPri);
+
+  //     // At reconv exit, set back to highest priority
+  //     BuildMI(MBB, TermIt, MBB.findDebugLoc(TermIt),
+  //             TII->get(RISCV::FSA_PRI_SET))
+  //           .addImm(MaxPri);
+  //     MadeChange = true;
+  //   }
+  // }
+
+
+  // for (MachineBasicBlock &MBB : MF) {
+  //   auto TermIt = MBB.getFirstTerminator();
+  //   if(MBB.pred_size() == 0) {
+  //     // At enter point, raise everyone's Pri
+  //     BuildMI(MBB, MBB.begin(), MBB.findDebugLoc(TermIt), TII->get(RISCV::FSA_PRI_RAISE));
+  //     MadeChange = true;
+  //   } else if(MBB.succ_size() == 0) {
+  //     // At exit point, reset everyone'e Pri by inserting a lower corresponding
+  //     // to raise at enter point
+  //     BuildMI(MBB, MBB.begin(), MBB.findDebugLoc(MBB.begin()), TII->get(RISCV::FSA_PRI_LOWER));
+  //     MadeChange = true;
+  //   } else if (MBB.pred_size() > 1) {
+  //     BuildMI(MBB, MBB.begin(), MBB.findDebugLoc(MBB.begin()), TII->get(RISCV::FSA_PRI_LOWER));
+  //     BuildMI(MBB, TermIt, MBB.findDebugLoc(TermIt), TII->get(RISCV::FSA_PRI_RAISE));
+  //     MadeChange = true;
+  //   }
+  //   // BuildMI(MBB, MBB.begin(), MBB.findDebugLoc(MBB.begin()),
+  //           // TII->get(RISCV::FSA_PRI_SET))
+  //       // .addImm(FinalLevel);
+  // }
 
   return MadeChange;
 }

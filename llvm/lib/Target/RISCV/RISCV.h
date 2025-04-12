@@ -128,6 +128,10 @@ void initializeRISCVFSAIPDOMLikePass(PassRegistry &);
 
 FunctionPass *createRISCVFSAGreedyPDomLevelPass();
 void initializeRISCVFSAGreedyPDomLevelPass(PassRegistry &);
+
+FunctionPass *createRISCVFSACleanUpPass();
+void initializeRISCVFSACleanUpPass(PassRegistry &);
+
 } // namespace llvm
 
 #endif
