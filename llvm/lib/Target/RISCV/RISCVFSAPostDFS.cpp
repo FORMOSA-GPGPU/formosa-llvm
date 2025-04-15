@@ -24,10 +24,10 @@
 #include <unordered_set>
 #include <queue>
 using namespace llvm;
-#define DEBUG_TYPE "RISCVFSAGreedyPDomLevel"
+#define DEBUG_TYPE "RISCVFSAPostDFS"
 
 namespace {
-class RISCVFSAGreedyPDomLevel : public MachineFunctionPass {
+class RISCVFSAPostDFS : public MachineFunctionPass {
 private:
   // Target Reg info
   const RISCVRegisterInfo *TRI;
@@ -37,7 +37,7 @@ private:
 
 public:
   static char ID;
-  RISCVFSAGreedyPDomLevel() : MachineFunctionPass(ID) {}
+  RISCVFSAPostDFS() : MachineFunctionPass(ID) {}
   int bfsDepth(const MachineBasicBlock* Start, bool FollowSucc,
     const std::unordered_set<MachineBasicBlock *>& ReconvBBSet, 
     const std::unordered_map<const MachineBasicBlock *, int>& DistFromEntry,
@@ -49,7 +49,7 @@ public:
   void initialize(MachineFunction &F);
   bool runOnMachineFunction(MachineFunction &MF) override;
   StringRef getPassName() const override {
-    return "RISCVFSAGreedyPDomLevel";
+    return "RISCVFSAPostDFS";
   }
   void getAnalysisUsage(AnalysisUsage &AU) const override {
     AU.addRequired<MachinePostDominatorTreeWrapperPass>();
@@ -60,22 +60,22 @@ public:
 
 } // namespace
 
-char RISCVFSAGreedyPDomLevel::ID = 0;
+char RISCVFSAPostDFS::ID = 0;
 
 
-INITIALIZE_PASS_BEGIN(RISCVFSAGreedyPDomLevel, DEBUG_TYPE,
-                      "FSA handling PDom priority by inserting fsa.pri "
-                      "instructions based on PDom level, use argument "
-                      "-fsa-pdom-level to enable the pass",
+INITIALIZE_PASS_BEGIN(RISCVFSAPostDFS, DEBUG_TYPE,
+                      "FSA handling reconv priority by inserting fsa.pri "
+                      "instructions based on post order dfs, use argument "
+                      "-fsa-post-dfs to enable the pass",
                       false, false)
 INITIALIZE_PASS_DEPENDENCY(MachinePostDominatorTreeWrapperPass)
-INITIALIZE_PASS_END(RISCVFSAGreedyPDomLevel, DEBUG_TYPE,
-                    "FSA handling PDom priority by inserting fsa.pri "
-                    "instructions based on PDom level, use argument "
-                    "-fsa-pdom-level to enable the pass",
-                    false, false)
+INITIALIZE_PASS_END(RISCVFSAPostDFS, DEBUG_TYPE,
+                      "FSA handling reconv priority by inserting fsa.pri "
+                      "instructions based on post order dfs, use argument "
+                      "-fsa-post-dfs to enable the pass",
+                      false, false)
 
-void RISCVFSAGreedyPDomLevel::initialize(MachineFunction &MF) {
+void RISCVFSAPostDFS::initialize(MachineFunction &MF) {
   const auto &ST = MF.getSubtarget<RISCVSubtarget>();
   MPDT = &getAnalysis<MachinePostDominatorTreeWrapperPass>().getPostDomTree();
   TII = ST.getInstrInfo();
@@ -83,7 +83,7 @@ void RISCVFSAGreedyPDomLevel::initialize(MachineFunction &MF) {
 }
 
   
-int RISCVFSAGreedyPDomLevel::bfsDepth(const MachineBasicBlock* Start, bool FollowSucc,
+int RISCVFSAPostDFS::bfsDepth(const MachineBasicBlock* Start, bool FollowSucc,
   const std::unordered_set<MachineBasicBlock *>& ReconvBBSet, 
   const std::unordered_map<const MachineBasicBlock* , int>& DistFromEntry,
   const std::unordered_map<const MachineBasicBlock* , int>& DistFromExit) {
@@ -133,7 +133,7 @@ int RISCVFSAGreedyPDomLevel::bfsDepth(const MachineBasicBlock* Start, bool Follo
   return MaxDepth;
 }
 
-std::unordered_map <const MachineBasicBlock*, int> RISCVFSAGreedyPDomLevel::bfsDistFromEntry(const MachineBasicBlock &EntryMBB) {
+std::unordered_map <const MachineBasicBlock*, int> RISCVFSAPostDFS::bfsDistFromEntry(const MachineBasicBlock &EntryMBB) {
   // BFS from entry to gather dist from entry to a BB
   std::unordered_map<const MachineBasicBlock*, int> BFSDistFromEntry;
   std::unordered_set<const MachineBasicBlock*> BFSVisted;
@@ -157,7 +157,7 @@ std::unordered_map <const MachineBasicBlock*, int> RISCVFSAGreedyPDomLevel::bfsD
   return BFSDistFromEntry;
 }
 
-std::unordered_map <const MachineBasicBlock*, int> RISCVFSAGreedyPDomLevel::bfsDistFromExit(const std::unordered_set<MachineBasicBlock *>& ExitMBBSet) {
+std::unordered_map <const MachineBasicBlock*, int> RISCVFSAPostDFS::bfsDistFromExit(const std::unordered_set<MachineBasicBlock *>& ExitMBBSet) {
   // BFS from entry to gather dist from entry to a BB
   std::unordered_map<const MachineBasicBlock*, int> BFSDistFromExit;
   std::unordered_set<const MachineBasicBlock*> BFSVisted;
@@ -183,11 +183,11 @@ std::unordered_map <const MachineBasicBlock*, int> RISCVFSAGreedyPDomLevel::bfsD
   return BFSDistFromExit;
 }
 
-bool RISCVFSAGreedyPDomLevel::runOnMachineFunction(MachineFunction &MF) {
+bool RISCVFSAPostDFS::runOnMachineFunction(MachineFunction &MF) {
   LLVM_DEBUG(
       dbgs() << "------------------------------------------------------------"
                 "\n";
-      dbgs() << "Running RISCVFSAGreedyPDomLevel on function: "
+      dbgs() << "Running RISCVFSAPostDFS on function: "
              << MF.getName() << "\n";
       dbgs() << "------------------------------------------------------------"
                 "\n\n\n";);
@@ -381,6 +381,6 @@ bool RISCVFSAGreedyPDomLevel::runOnMachineFunction(MachineFunction &MF) {
   return MadeChange;
 }
 
-FunctionPass *llvm::createRISCVFSAGreedyPDomLevelPass() {
-  return new RISCVFSAGreedyPDomLevel();
+FunctionPass *llvm::createRISCVFSAPostDFSPass() {
+  return new RISCVFSAPostDFS();
 }

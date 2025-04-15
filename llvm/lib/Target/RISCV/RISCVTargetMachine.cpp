@@ -123,9 +123,9 @@ static cl::opt<bool>
                    cl::desc("Enable the MinPC pass for divergence handling"),
                    cl::init(false));
 
-static cl::opt<bool> EnableFSAGreedy(
-  "fsa-greedy", cl::Hidden,
-  cl::desc("Enable the Greedy pass for divergence handling"),
+static cl::opt<bool> EnableFSAPostDFS(
+  "fsa-post-dfs", cl::Hidden,
+  cl::desc("Enable the post order dfs pass for divergence handling"),
   cl::init(false));
 
 bool UseFSAICSFirst = false;
@@ -175,7 +175,7 @@ extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeRISCVTarget() {
   initializeRISCVFSARemoveRedundantPriPass(*PR);
   initializeRISCVFSAInsertMinPCPriPass(*PR);
   initializeRISCVFSAPDomLevelBasedPriorityPass(*PR);
-  initializeRISCVFSAGreedyPDomLevelPass(*PR);
+  initializeRISCVFSAPostDFSPass(*PR);
   initializeRISCVFSAIPDOMLikePass(*PR);
   initializeRISCVFSACleanUpPass(*PR);
 }
@@ -649,15 +649,15 @@ void RISCVPassConfig::addPreEmitPass2() {
     addPass(createRISCVFSAIPDOMLikePass());
   }
 
-  if (EnableFSAGreedy) {
+  if (EnableFSAPostDFS) {
     MCSubtargetInfo STI = *TM->getMCSubtargetInfo();
     if (!STI.hasFeature(RISCV::FeatureVendorXFormosaPri))
-      report_fatal_error("FSA greedy pass requires XFormosaPri extension");
-    addPass(createRISCVFSAGreedyPDomLevelPass());
+      report_fatal_error("FSA post order dfs pass requires XFormosaPri extension");
+    addPass(createRISCVFSAPostDFSPass());
   }
   bool FSAUseRelativePri = EnableFSAIPDOMLike || UseFSAICSFirst;
   bool FSAUseAbsPri =
-      (EnableFSAMinPC || EnableFSAPDomLevelBasedPriority || EnableFSAGreedy);
+      (EnableFSAMinPC || EnableFSAPDomLevelBasedPriority || EnableFSAPostDFS);
   bool EnableFSAFunctionPriority = !FSAUseRelativePri && FSAUseAbsPri;
   if (EnableFSAFunctionPriority) {
     MCSubtargetInfo STI = *TM->getMCSubtargetInfo();
