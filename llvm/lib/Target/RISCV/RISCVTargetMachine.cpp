@@ -123,8 +123,8 @@ static cl::opt<bool>
                    cl::desc("Enable the MinPC pass for divergence handling"),
                    cl::init(false));
 
-static cl::opt<bool> EnableFSAPostDFS(
-  "fsa-post-dfs", cl::Hidden,
+static cl::opt<bool> EnableFSAPostTopo(
+  "fsa-post-topo", cl::Hidden,
   cl::desc("Enable the post order dfs pass for divergence handling"),
   cl::init(false));
 
@@ -175,7 +175,7 @@ extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeRISCVTarget() {
   initializeRISCVFSARemoveRedundantPriPass(*PR);
   initializeRISCVFSAInsertMinPCPriPass(*PR);
   initializeRISCVFSAPDomLevelBasedPriorityPass(*PR);
-  initializeRISCVFSAPostDFSPass(*PR);
+  initializeRISCVFSAPostTopoPass(*PR);
   initializeRISCVFSAIPDOMLikePass(*PR);
   initializeRISCVFSACleanUpPass(*PR);
 }
@@ -649,16 +649,16 @@ void RISCVPassConfig::addPreEmitPass2() {
     addPass(createRISCVFSAIPDOMLikePass());
   }
 
-  if (EnableFSAPostDFS) {
+  if (EnableFSAPostTopo) {
     MCSubtargetInfo STI = *TM->getMCSubtargetInfo();
     if (!STI.hasFeature(RISCV::FeatureVendorXFormosaPri))
-      report_fatal_error("FSA post order dfs pass requires XFormosaPri extension");
-    addPass(createRISCVFSAPostDFSPass());
+      report_fatal_error("FSA post order topo pass requires XFormosaPri extension");
+    addPass(createRISCVFSAPostTopoPass());
   }
   bool FSAUseRelativePri = EnableFSAIPDOMLike || UseFSAICSFirst;
   bool FSAUseAbsPri =
-      (EnableFSAMinPC || EnableFSAPDomLevelBasedPriority || EnableFSAPostDFS);
-  bool EnableFSAFunctionPriority = !FSAUseRelativePri && FSAUseAbsPri;
+      (EnableFSAMinPC || EnableFSAPDomLevelBasedPriority || EnableFSAPostTopo);
+  bool EnableFSAFunctionPriority = !FSAUseRelativePri && FSAUseAbsPri && !EnableFSAPostTopo;
   if (EnableFSAFunctionPriority) {
     MCSubtargetInfo STI = *TM->getMCSubtargetInfo();
     if (!STI.hasFeature(RISCV::FeatureVendorXFormosaPri)) {

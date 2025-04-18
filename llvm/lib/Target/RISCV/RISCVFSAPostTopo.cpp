@@ -21,10 +21,10 @@
 #include <unordered_set>
 #include <queue>
 using namespace llvm;
-#define DEBUG_TYPE "RISCVFSAPostDFS"
+#define DEBUG_TYPE "RISCVFSAPostTopo"
 
 namespace {
-class RISCVFSAPostDFS : public MachineFunctionPass {
+class RISCVFSAPostTopo : public MachineFunctionPass {
 private:
   // Target Reg info
   const RISCVRegisterInfo *TRI;
@@ -32,11 +32,11 @@ private:
 
 public:
   static char ID;
-  RISCVFSAPostDFS() : MachineFunctionPass(ID) {}
+  RISCVFSAPostTopo() : MachineFunctionPass(ID) {}
   void initialize(MachineFunction &F);
   bool runOnMachineFunction(MachineFunction &MF) override;
   StringRef getPassName() const override {
-    return "RISCVFSAPostDFS";
+    return "RISCVFSAPostTopo";
   }
   void getAnalysisUsage(AnalysisUsage &AU) const override {
     MachineFunctionPass::getAnalysisUsage(AU);
@@ -45,32 +45,32 @@ public:
 
 } // namespace
 
-char RISCVFSAPostDFS::ID = 0;
+char RISCVFSAPostTopo::ID = 0;
 
 
-INITIALIZE_PASS_BEGIN(RISCVFSAPostDFS, DEBUG_TYPE,
+INITIALIZE_PASS_BEGIN(RISCVFSAPostTopo, DEBUG_TYPE,
                       "FSA handling reconv priority by inserting fsa.pri "
                       "instructions based on post order dfs, use argument "
-                      "-fsa-post-dfs to enable the pass",
+                      "-fsa-post-topo to enable the pass",
                       false, false)
 INITIALIZE_PASS_DEPENDENCY(MachinePostDominatorTreeWrapperPass)
-INITIALIZE_PASS_END(RISCVFSAPostDFS, DEBUG_TYPE,
+INITIALIZE_PASS_END(RISCVFSAPostTopo, DEBUG_TYPE,
                       "FSA handling reconv priority by inserting fsa.pri "
                       "instructions based on post order dfs, use argument "
-                      "-fsa-post-dfs to enable the pass",
+                      "-fsa-post-topo to enable the pass",
                       false, false)
 
-void RISCVFSAPostDFS::initialize(MachineFunction &MF) {
+void RISCVFSAPostTopo::initialize(MachineFunction &MF) {
   const auto &ST = MF.getSubtarget<RISCVSubtarget>();
   TII = ST.getInstrInfo();
   TRI = ST.getRegisterInfo();
 }
 
-bool RISCVFSAPostDFS::runOnMachineFunction(MachineFunction &MF) {
+bool RISCVFSAPostTopo::runOnMachineFunction(MachineFunction &MF) {
   LLVM_DEBUG(
       dbgs() << "------------------------------------------------------------"
                 "\n";
-      dbgs() << "Running RISCVFSAPostDFS on function: "
+      dbgs() << "Running RISCVFSAPostTopo on function: "
              << MF.getName() << "\n";
       dbgs() << "------------------------------------------------------------"
                 "\n\n\n";);
@@ -135,6 +135,6 @@ bool RISCVFSAPostDFS::runOnMachineFunction(MachineFunction &MF) {
   return MadeChange;
 }
 
-FunctionPass *llvm::createRISCVFSAPostDFSPass() {
-  return new RISCVFSAPostDFS();
+FunctionPass *llvm::createRISCVFSAPostTopoPass() {
+  return new RISCVFSAPostTopo();
 }

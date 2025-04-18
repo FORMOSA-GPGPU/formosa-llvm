@@ -62,7 +62,27 @@ bool RISCVFSACleanUp::runOnMachineFunction(MachineFunction &MF) {
   // Skip insertion only when opt level is not none
   bool AllowSkip = (MF.getTarget().getOptLevel() != CodeGenOptLevel::None);
 
+  std::unordered_map<MachineBasicBlock*, int> MBBRaiseBeforeLowerCnt;
+  std::unordered_map<MachineBasicBlock*, int> MBBRaiseCnt;
+  std::unordered_map<MachineBasicBlock*, int> MBBLowerCnt;
+
   for (MachineBasicBlock &MBB: MF) {
+    bool MetLower = false;
+    int RaiseBeforeLowerCnt = 0;
+    int RaiseCnt = 0;
+    int LowerCnt = 0;
+    for(auto &MI : MBB) {
+        if (MI.getOpcode() == RISCV::FSA_PRI_RAISE) {
+            RaiseCnt++;
+            if(!MetLower)
+                RaiseBeforeLowerCnt++;
+        } else if (MI.getOpcode() == RISCV::FSA_PRI_LOWER) {
+            MetLower = true;
+            LowerCnt++;
+        }
+    }
+    
+
     int raise_cnt = 0;
     int lower_cnt = 0;
     // for (auto &MI : MBB) {

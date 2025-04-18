@@ -39,7 +39,7 @@ add_llvm_target(RISCVCodeGen
   RISCVExpandPseudoInsts.cpp
   RISCVFrameLowering.cpp
   RISCVFSAPDomLevelBasedPriority.cpp
-  RISCVFSAPostDFS.cpp
+  RISCVFSAPostTopo.cpp
   RISCVFSACleanUp.cpp
   RISCVGatherScatterLowering.cpp
   RISCVIndirectBranchTracking.cpp

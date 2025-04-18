@@ -126,8 +126,8 @@ void initializeRISCVFSAPDomLevelBasedPriorityPass(PassRegistry &);
 FunctionPass *createRISCVFSAIPDOMLikePass();
 void initializeRISCVFSAIPDOMLikePass(PassRegistry &);
 
-FunctionPass *createRISCVFSAPostDFSPass();
-void initializeRISCVFSAPostDFSPass(PassRegistry &);
+FunctionPass *createRISCVFSAPostTopoPass();
+void initializeRISCVFSAPostTopoPass(PassRegistry &);
 
 FunctionPass *createRISCVFSACleanUpPass();
 void initializeRISCVFSACleanUpPass(PassRegistry &);
