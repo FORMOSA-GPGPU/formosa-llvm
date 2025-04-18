@@ -62,7 +62,13 @@ bool RISCVFSACleanUp::runOnMachineFunction(MachineFunction &MF) {
   // Skip insertion only when opt level is not none
   bool AllowSkip = (MF.getTarget().getOptLevel() != CodeGenOptLevel::None);
 
-  std::unordered_map<MachineBasicBlock*, int> MBBRaiseBeforeLowerCnt;
+  if ((!MF.getProperties().hasProperty(
+          MachineFunctionProperties::Property::Divergence)) &&
+      AllowSkip) {
+    LLVM_DEBUG(dbgs() << "Function does not have divergence, skip priority "
+                         "instructions insertion\n");
+    return false;
+  }
   std::unordered_map<MachineBasicBlock*, int> MBBRaiseCnt;
   std::unordered_map<MachineBasicBlock*, int> MBBLowerCnt;
 
@@ -71,66 +77,47 @@ bool RISCVFSACleanUp::runOnMachineFunction(MachineFunction &MF) {
     int RaiseBeforeLowerCnt = 0;
     int RaiseCnt = 0;
     int LowerCnt = 0;
-    for(auto &MI : MBB) {
-        if (MI.getOpcode() == RISCV::FSA_PRI_RAISE) {
-            RaiseCnt++;
-            if(!MetLower)
-                RaiseBeforeLowerCnt++;
-        } else if (MI.getOpcode() == RISCV::FSA_PRI_LOWER) {
-            MetLower = true;
-            LowerCnt++;
+        // make_early_inc_range ensures we can safely remove instructions
+        // (like with eraseFromParent) without invalidating the iterator.
+        for(auto &MI : llvm::make_early_inc_range(MBB)) {
+            if (MI.getOpcode() == RISCV::FSA_PRI_RAISE) {
+                RaiseCnt++;
+                if(!MetLower)
+                    RaiseBeforeLowerCnt++;
+                MI.eraseFromParent();
+            } else if (MI.getOpcode() == RISCV::FSA_PRI_LOWER) {
+                MetLower = true;
+                LowerCnt++;
+                MI.eraseFromParent();
+            }
         }
-    }
-    
-
-    int raise_cnt = 0;
-    int lower_cnt = 0;
-    // for (auto &MI : MBB) {
-    //     if (MI.getOpcode() == RISCV::FSA_PRI_RAISE) {
-    //         raise_cnt++;
-    //         MI.eraseFromParent();
-    //     } else if (MI.getOpcode() == RISCV::FSA_PRI_LOWER) {
-    //         lower_cnt++;
-    //         MI.eraseFromParent();
-    //     }
-    // }
-    
-    for (auto &MI : llvm::make_early_inc_range(MBB)) {
-        if (MI.getOpcode() == RISCV::FSA_PRI_RAISE) {
-            raise_cnt++;
-            MI.eraseFromParent();
-        } else if (MI.getOpcode() == RISCV::FSA_PRI_LOWER) {
-            lower_cnt++;
-            MI.eraseFromParent();
+        if (RaiseBeforeLowerCnt > LowerCnt) {
+            RaiseCnt -= LowerCnt;
+            LowerCnt = 0;
+        } else {
+            RaiseCnt -= RaiseBeforeLowerCnt;
+            LowerCnt -= RaiseBeforeLowerCnt;
         }
-    }
-    
-// ! Decrease lower_cnt may cause wrong ctrl flow, keep un changed
-    // int min_cnt = std::min(raise_cnt, lower_cnt);
-    // raise_cnt -= min_cnt;
-    // lower_cnt -= min_cnt;
-    auto TermIt = MBB.getFirstTerminator();
-    int HasSelfLoop = 0;
-    for(MachineBasicBlock *MBBPred : MBB.successors()) {
-        if(MBBPred == &MBB)
-            HasSelfLoop = 1;
+
+        MBBRaiseCnt[&MBB] = RaiseCnt;
+        MBBLowerCnt[&MBB] = LowerCnt;
     }
 
-    if (raise_cnt == lower_cnt && raise_cnt == 0) {
-        int MBBPredCnt = MBB.pred_size();
-        if((MBBPredCnt - HasSelfLoop) > 1)
-            raise_cnt = lower_cnt = 1;
-    }
-    for(int i = 0; i < raise_cnt; i++) {
-        BuildMI(MBB, TermIt, MBB.findDebugLoc(TermIt), TII->get(RISCV::FSA_PRI_RAISE));
-        MadeChange = true;
-    }
+    for (MachineBasicBlock &MBB : MF) {
+        auto TermIt = MBB.getFirstTerminator();
+        int RaiseCnt = MBBRaiseCnt[&MBB];
+        int LowerCnt = MBBLowerCnt[&MBB];
+        for(int i = 0; i < RaiseCnt; i++) {
+            BuildMI(MBB, TermIt, MBB.findDebugLoc(TermIt), TII->get(RISCV::FSA_PRI_RAISE));
+            MadeChange = true;
+        }
 
-    for(int i = 0; i < lower_cnt; i++) {
-        BuildMI(MBB, MBB.begin(), MBB.findDebugLoc(MBB.begin()), TII->get(RISCV::FSA_PRI_LOWER));
-        MadeChange = true;
+        for(int i = 0; i < LowerCnt; i++) {
+            BuildMI(MBB, MBB.begin(), MBB.findDebugLoc(MBB.begin()), TII->get(RISCV::FSA_PRI_LOWER));
+            MadeChange = true;
+        }
+        
     }
-  }
   return MadeChange;
 }
 
