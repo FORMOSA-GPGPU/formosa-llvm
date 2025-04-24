@@ -11,8 +11,8 @@
 #include "llvm/CodeGen/Passes.h"
 #include "llvm/InitializePasses.h"
 #include <functional>
-#include <unordered_set>
 #include <iterator>
+#include <unordered_set>
 using namespace llvm;
 #define DEBUG_TYPE "RISCVFSAIPDOMLike"
 
@@ -57,7 +57,8 @@ INITIALIZE_PASS_END(
 
 void RISCVFSAIPDOMLike::initialize(MachineFunction &MF) {
   const auto &ST = MF.getSubtarget<RISCVSubtarget>();
-  PostDominatorTree = &getAnalysis<MachinePostDominatorTreeWrapperPass>().getPostDomTree();
+  PostDominatorTree =
+      &getAnalysis<MachinePostDominatorTreeWrapperPass>().getPostDomTree();
   MLI = &getAnalysis<MachineLoopInfoWrapperPass>().getLI();
   TII = ST.getInstrInfo();
   TRI = ST.getRegisterInfo();
@@ -80,21 +81,24 @@ bool RISCVFSAIPDOMLike::runOnMachineFunction(MachineFunction &MF) {
   for (MachineBasicBlock &MBB : MF) {
     bool MBBIsExitBB = MBB.succ_empty();
     bool MBBIsDiverged = MBB.succ_size() > 1;
-    if(MBBIsExitBB) {
+    if (MBBIsExitBB) {
       ExitMBBSet.insert(&MBB);
     }
 
     if (MBBIsDiverged) {
       MadeChange = true;
-      DomTreeNodeBase<MachineBasicBlock> *PDomNodeOfMBB = PostDominatorTree->getNode(&MBB);
-      if(PDomNodeOfMBB && PDomNodeOfMBB->getIDom()) {
+      DomTreeNodeBase<MachineBasicBlock> *PDomNodeOfMBB =
+          PostDominatorTree->getNode(&MBB);
+      if (PDomNodeOfMBB && PDomNodeOfMBB->getIDom()) {
         // immediate post dominator of MBB
-        MachineBasicBlock *ImmPostDominatorMBB = PDomNodeOfMBB->getIDom()->getBlock();
-        // Skip if immediate post dominator is self or immediate post dominator is exit bb
-        // exit bb will be dealed later independently
-        if(ImmPostDominatorMBB == &MBB || ImmPostDominatorMBB->succ_empty())
+        MachineBasicBlock *ImmPostDominatorMBB =
+            PDomNodeOfMBB->getIDom()->getBlock();
+        // Skip if immediate post dominator is self or immediate post dominator
+        // is exit bb exit bb will be dealed later independently
+        if (ImmPostDominatorMBB == &MBB || ImmPostDominatorMBB->succ_empty())
           continue;
-        DomTreeNodeBase<MachineBasicBlock> *ImmPDomNode = PostDominatorTree->getNode(ImmPostDominatorMBB);
+        DomTreeNodeBase<MachineBasicBlock> *ImmPDomNode =
+            PostDominatorTree->getNode(ImmPostDominatorMBB);
         ImmPostDominatorMBBSet.insert(ImmPostDominatorMBB);
         ImmPDomLevelSet.insert(ImmPDomNode->getLevel());
       }
@@ -102,38 +106,39 @@ bool RISCVFSAIPDOMLike::runOnMachineFunction(MachineFunction &MF) {
   }
   int MaxPriPairCnt = 1;
   for (MachineBasicBlock *MBB : ImmPostDominatorMBBSet) {
-    DomTreeNodeBase<MachineBasicBlock> *PDomNodeOfMBB = PostDominatorTree->getNode(MBB);
+    DomTreeNodeBase<MachineBasicBlock> *PDomNodeOfMBB =
+        PostDominatorTree->getNode(MBB);
     int Level = PDomNodeOfMBB->getLevel();
     auto PDomLv = ImmPDomLevelSet.find(Level);
     int PriPairCnt = std::distance(ImmPDomLevelSet.begin(), PDomLv) + 1;
 
-    for(int i = 0; i < PriPairCnt; ++i) {
+    for (int i = 0; i < PriPairCnt; ++i) {
       // Insert Lower at begining to wait other threads for reconverge
       BuildMI(*MBB, MBB->begin(), MBB->findDebugLoc(MBB->begin()),
-      TII->get(RISCV::FSA_PRI_LOWER));
-      
+              TII->get(RISCV::FSA_PRI_LOWER));
+
       auto MBBTermIt = MBB->getFirstTerminator();
       // Insert Raise at end to resume higher priority
       BuildMI(*MBB, MBBTermIt, MBB->findDebugLoc(MBBTermIt),
-      TII->get(RISCV::FSA_PRI_RAISE));
+              TII->get(RISCV::FSA_PRI_RAISE));
     }
     MaxPriPairCnt = std::max(MaxPriPairCnt, PriPairCnt);
   }
 
-  if(MadeChange) {
+  if (MadeChange) {
     MachineBasicBlock &EntryMBB = *MF.begin();
     auto EntryTermIt = EntryMBB.getFirstTerminator();
-    for(int i = 0; i < MaxPriPairCnt; ++i) {
+    for (int i = 0; i < MaxPriPairCnt; ++i) {
       // At begining, raise every thread's pri
       BuildMI(EntryMBB, EntryTermIt, EntryMBB.findDebugLoc(EntryTermIt),
-      TII->get(RISCV::FSA_PRI_RAISE));
+              TII->get(RISCV::FSA_PRI_RAISE));
     }
 
-    for(int i = 0; i < MaxPriPairCnt; ++i) {
+    for (int i = 0; i < MaxPriPairCnt; ++i) {
       // At every exit, lower pri to reset priority
-      for(MachineBasicBlock *MBB : ExitMBBSet) {
+      for (MachineBasicBlock *MBB : ExitMBBSet) {
         BuildMI(*MBB, MBB->begin(), MBB->findDebugLoc(MBB->begin()),
-        TII->get(RISCV::FSA_PRI_LOWER));
+                TII->get(RISCV::FSA_PRI_LOWER));
       }
     }
   }
