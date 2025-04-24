@@ -71,6 +71,7 @@ bool RISCVFSACleanUp::runOnMachineFunction(MachineFunction &MF) {
   }
   std::unordered_map<MachineBasicBlock*, int> MBBRaiseCnt;
   std::unordered_map<MachineBasicBlock*, int> MBBLowerCnt;
+  std::set<MachineInstr *> FSAPRISETSet;
 
   for (MachineBasicBlock &MBB: MF) {
     bool MetLower = false;
@@ -89,6 +90,8 @@ bool RISCVFSACleanUp::runOnMachineFunction(MachineFunction &MF) {
                 MetLower = true;
                 LowerCnt++;
                 MI.eraseFromParent();
+            } else if (MI.getOpcode() == RISCV::FSA_PRI_SET) {
+                FSAPRISETSet.insert(&MI);
             }
         }
         if (RaiseBeforeLowerCnt > LowerCnt) {
@@ -117,6 +120,12 @@ bool RISCVFSACleanUp::runOnMachineFunction(MachineFunction &MF) {
             MadeChange = true;
         }
         
+    }
+
+    if (FSAPRISETSet.size() == 1) {
+        for (auto *Instr : FSAPRISETSet) {
+            Instr->eraseFromParent();
+        }
     }
   return MadeChange;
 }
