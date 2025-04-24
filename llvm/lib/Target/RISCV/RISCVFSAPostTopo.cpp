@@ -186,7 +186,7 @@ bool RISCVFSAPostTopo::runOnMachineFunction(MachineFunction &MF) {
         NeedInsertMBBSet.insert(&MBB);  // Need insert new MBB to deal with
     }
   }
-  int StartPri = 1 + InsertInExit;
+  int StartPri = InsertInExit;
 
   if (NeedInsertMBBSet.size()) {
     for (auto *MBB : NeedInsertMBBSet) {
@@ -249,10 +249,10 @@ bool RISCVFSAPostTopo::runOnMachineFunction(MachineFunction &MF) {
 
   if (InsertInExit) {
     for (MachineBasicBlock *MBB : ExitMBBSet) {
-      if (hasFSABar(*MBB))
+      if (hasFSABar(*MBB) || MBB->pred_size() == 1)
         continue;
       BuildMI(*MBB, MBB->begin(), MBB->findDebugLoc(MBB->begin()),
-        TII->get(RISCV::FSA_PRI_SET)).addImm(1);
+        TII->get(RISCV::FSA_PRI_SET)).addImm(0);
     }
   }
   return MadeChange;
