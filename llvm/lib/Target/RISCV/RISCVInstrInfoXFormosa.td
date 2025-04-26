@@ -41,6 +41,22 @@ let Predicates = [HasVendorXFormosaPri, IsRV64],
 class XFormosaPriI<bits<3> funct3, string opcodestr>
     : RVInstI<funct3, OPC_CUSTOM_1, (outs), (ins uimm6:$imm), opcodestr, "$imm">;
 
+def FSA_PRI_RAISE_N : XFormosaPriI <0b010, "fsa.pri.raise.n.t">, Sched<[]>{
+    bits<6> imm;
+    let rs1 = 0;
+    let rd = 0;
+    let Inst{31-26} = 0;
+    let Inst{25-20} = imm;  // the priority value to raise
+}
+
+def FSA_PRI_LOWER_N : XFormosaPriI <0b011, "fsa.pri.lower.n.t">, Sched<[]>{
+    bits<6> imm;
+    let rs1 = 0;
+    let rd = 0;
+    let Inst{31-26} = 0;
+    let Inst{25-20} = imm;  // the priority value to lower
+}
+
 def FSA_PRI_SET : XFormosaPriI<0b100, "fsa.pri.set.t">, Sched<[]>{
     bits<6> imm;
     let rs1 = 0;
@@ -79,6 +95,8 @@ def : Pat<(int_riscv_fsa_pri_reset), (FSA_PRI_RESET)>;
 
 def : PatUImm6UImm6<int_riscv_fsa_barrier, FSA_BAR>;
 def : PatUImm6<int_riscv_fsa_pri_set, FSA_PRI_SET>;
+def : PatUImm6<int_riscv_fsa_pri_lower_n, FSA_PRI_LOWER_N>;
+def : PatUImm6<int_riscv_fsa_pri_raise_n, FSA_PRI_RAISE_N>;
 
 def : Pat<(i64 (int_riscv_fsa_local_id_x)),      (CSRRS FSA_XCLLX.Encoding,    (XLenVT X0))>;
 def : Pat<(i64 (int_riscv_fsa_local_id_y)),      (CSRRS FSA_XCLLY.Encoding,    (XLenVT X0))>;
