@@ -138,7 +138,8 @@ bool RISCVFSAPostTopo::runOnMachineFunction(MachineFunction &MF) {
         SkipInsertMBBSet.insert(MBB);
     }
   }
-  bool LoopOpt = true;
+  bool LoopOpt = true; // Skip insert in loop header and BBs having selfLoop
+  bool TailInversion = true; // The raise of last pri pair (lower ... raise) is moved to entryBB if possible
 
   for(MachineBasicBlock &MBB: MF) {
     bool CanSkip = hasSelfLoop(MBB) && (MBB.pred_size() < 3);
@@ -192,32 +193,35 @@ bool RISCVFSAPostTopo::runOnMachineFunction(MachineFunction &MF) {
   //     ReconvBBSet.insert(NewMBB);
   //   }
   // }
-
+  bool InsertInEntry = false;
   if(ReconvBBSet.size()) {
     for(auto *MBB: ReversePostOrderTraversal<MachineBasicBlock*>(&MF.front())) {
       if(ReconvBBSet.count(MBB)) {
-
+        MadeChange = true;
         auto TermIt = MBB->getFirstInstrTerminator();
         BuildMI(*MBB, MBB->begin(), MBB->findDebugLoc(MBB->begin()),
         TII->get(RISCV::FSA_PRI_LOWER_N)).addImm(StartPri);
 
+        // Skip last pri.raise, succ_size() < 2 to ensure MBB has no back-edge (to loop header)
+        if (TailInversion && MBB->succ_size() < 2 && StartPri == (int)ReconvBBSet.size()) {
+          InsertInEntry = true;
+          break;
+        }
+
         BuildMI(*MBB, TermIt, MBB->findDebugLoc(TermIt),
         TII->get(RISCV::FSA_PRI_RAISE_N)).addImm(StartPri);
-
         StartPri++;
-        MadeChange = true;
       }
     }
   }
 
-  // MachineBasicBlock &EntryMBB = *MF.begin();
-  // bool InsertInEntry = true;
-  // if (InsertInEntry) {
-  //   MadeChange = true;
-  //   auto EntryTermIt = EntryMBB.getFirstTerminator();
-  //   BuildMI(EntryMBB, EntryTermIt, EntryMBB.findDebugLoc(EntryTermIt),
-  //     TII->get(RISCV::FSA_PRI_RAISE_N)).addImm(StartPri);
-  // }
+  MachineBasicBlock &EntryMBB = *MF.begin();
+  if (InsertInEntry) {
+    MadeChange = true;
+    auto EntryTermIt = EntryMBB.getFirstTerminator();
+    BuildMI(EntryMBB, EntryTermIt, EntryMBB.findDebugLoc(EntryTermIt),
+      TII->get(RISCV::FSA_PRI_RAISE_N)).addImm(StartPri);
+  }
 
   // if (InsertInExit) {
   //   for (MachineBasicBlock *MBB : ExitMBBSet) {
