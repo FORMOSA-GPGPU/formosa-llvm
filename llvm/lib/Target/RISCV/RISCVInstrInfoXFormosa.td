@@ -41,7 +41,7 @@ let Predicates = [HasVendorXFormosaPri, IsRV64],
 class XFormosaPriI<bits<3> funct3, string opcodestr>
     : RVInstI<funct3, OPC_CUSTOM_1, (outs), (ins uimm6:$imm), opcodestr, "$imm">;
 
-def FSA_PRI_RAISE_N : XFormosaPriI <0b010, "fsa.pri.raise.n.t">, Sched<[]>{
+def FSA_PRI_RAISE_N : XFormosaPriI <0b101, "fsa.pri.raise.n.t">, Sched<[]>{
     bits<6> imm;
     let rs1 = 0;
     let rd = 0;

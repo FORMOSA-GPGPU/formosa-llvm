@@ -122,116 +122,82 @@ bool RISCVFSAPostTopo::runOnMachineFunction(MachineFunction &MF) {
   std::unordered_map<MachineBasicBlock *, int> ReconvBBPri;
   std::unordered_set<MachineBasicBlock *> NeedInsertMBBSet;
   std::unordered_set<MachineBasicBlock *> SkipInsertMBBSet;
-  bool InsertInExit = false;
+  bool InsertInExit = true;
+
+
+
   for (auto *Loop : *MLI) {
-    bool LoopHasDiverge = false;
-    int BackEdgeCnt = 0;
     // std::cout << "Found top-level loop Header: MBB" << Loop->getHeader()->getNumber() << " with following BBs:\n";
-    for (auto *MBB : Loop->getBlocks()) {
-      bool HasEdgeToHeader = false;
-      bool HasEdgeFromHeader = false;
-      if (MBB == Loop->getHeader())
-        continue;
-      std::cout << "MBB" << MBB->getNumber();
-      for (auto *Succ : MBB->successors()) {
-        if(Succ == Loop->getHeader()) {
-          HasEdgeToHeader = true;
-          BackEdgeCnt++;
-          int MBBPredSize = MBB->pred_size();
-          for (auto *Pred : MBB->predecessors()) {
-            if (Pred == Loop->getHeader()) {
-              HasEdgeFromHeader = true;
-              MBBPredSize -= 1;
-              break;
-            }
-          }
-          if (MBBPredSize < 2) {
-            SkipInsertMBBSet.insert(MBB);
-          }
-        }
-      }
-      std::cout << "\n";
-      if (MBB->pred_size() - (HasEdgeFromHeader && HasEdgeToHeader) > 1) {
-        LoopHasDiverge = true;
-        // std::cout << "Loop Contain divergence at MBB" << MBB->getNumber() << "\n";
-      }
-    }
+    auto *MBB = Loop->getHeader();
+    if (MBB && MBB->pred_size() <= 2)
+      SkipInsertMBBSet.insert(MBB);
 
-    if (!LoopHasDiverge) {
-      if ((int)Loop->getHeader()->pred_size() - BackEdgeCnt > 2)
-        NeedInsertMBBSet.insert(Loop->getHeader());
-      else
-        SkipInsertMBBSet.insert(Loop->getHeader());
+    for (auto *SubLoop : *Loop) {
+      auto *MBB = SubLoop->getHeader();
+      if (MBB && MBB->pred_size() <= 2)
+        SkipInsertMBBSet.insert(MBB);
     }
-
-      // for (auto *SubLoop : *Loop)
-      //  std::cout << "Found nested loop Header: " << SubLoop->getHeader()->getNumber() << "\n";
   }
+  bool LoopOpt = true;
 
   for(MachineBasicBlock &MBB: MF) {
-    bool IsExitMBB = MBB.succ_empty();
-    if (IsExitMBB){
-      ExitMBBSet.insert(&MBB);
-      if(MBB.pred_size() > 1)
-        InsertInExit = true;
-      continue;
-    }
-    
+    bool CanSkip = hasSelfLoop(MBB) && (MBB.pred_size() < 3);
     if(MBB.pred_size() > 1) {
-      if (hasFSABar(MBB))
-        continue;
-      if(!hasSelfLoop(MBB))
-        ReconvBBSet.insert(&MBB);
-      else if(MBB.pred_size() > 2)      // Except self loop edge, there still exist more than 1 pred
-        NeedInsertMBBSet.insert(&MBB);  // Need insert new MBB to deal with
-    }
-  }
-  int StartPri = InsertInExit;
-
-  if (NeedInsertMBBSet.size()) {
-    for (auto *MBB : NeedInsertMBBSet) {
-      MachineBasicBlock *NewMBB = MF.CreateMachineBasicBlock();
-      MF.insert(MBB->getIterator(), NewMBB);
-
-      BuildMI(*NewMBB, NewMBB->end(), DebugLoc(), TII->get(TargetOpcode::G_BR)).addMBB(MBB);
-      NewMBB->addSuccessor(MBB);
-
-      // make_early_inc_range let us to modify MBB's preds safely
-      for (auto *MBBPred : llvm::make_early_inc_range(MBB->predecessors())) {
-        if (MBBPred == MBB) // Don't touch self loop edge
-          continue;
-
-        bool IsFallThroughBB = MBBPred->isLayoutSuccessor(MBB);
-
-        if (IsFallThroughBB) {
-          // Move NewMBB to fallthrough terminate point ?
-          MF.splice(std::next(MBBPred->getIterator()), NewMBB);
-          BuildMI(*MBBPred, MBBPred->end(), DebugLoc(), TII->get(TargetOpcode::G_BR)).addMBB(NewMBB);
-        } else {
-          for (MachineInstr &Term : *MBBPred) {
-            if(!Term.isBranch()) continue;
-            for (unsigned i = 0; i < Term.getNumOperands(); ++i) {
-              MachineOperand &Op = Term.getOperand(i);
-              // For all edge pointed to MBB, redirect to NewMBB;
-              if (Op.isMBB() && Op.getMBB() == MBB) {
-                Op.setMBB(NewMBB);
-              }
-            }
-          }
-        }
-        MBBPred->removeSuccessor(MBB);
-        MBBPred->addSuccessor(NewMBB);
+      if (LoopOpt) {
+        if(!CanSkip && !SkipInsertMBBSet.count(&MBB) && !hasFSABar(MBB))
+          ReconvBBSet.insert(&MBB);
+      } else {
+        if (!hasFSABar(MBB))
+          ReconvBBSet.insert(&MBB);
       }
-      ReconvBBSet.insert(NewMBB);
+
     }
   }
+  int StartPri = 1;
+
+  // if (NeedInsertMBBSet.size()) {
+  //   for (auto *MBB : NeedInsertMBBSet) {
+  //     MachineBasicBlock *NewMBB = MF.CreateMachineBasicBlock();
+  //     MF.insert(MBB->getIterator(), NewMBB);
+
+  //     BuildMI(*NewMBB, NewMBB->end(), DebugLoc(), TII->get(TargetOpcode::G_BR)).addMBB(MBB);
+  //     NewMBB->addSuccessor(MBB);
+
+  //     // make_early_inc_range let us to modify MBB's preds safely
+  //     for (auto *MBBPred : llvm::make_early_inc_range(MBB->predecessors())) {
+  //       if (MBBPred == MBB) // Don't touch self loop edge
+  //         continue;
+
+  //       bool IsFallThroughBB = MBBPred->isLayoutSuccessor(MBB);
+
+  //       if (IsFallThroughBB) {
+  //         // Move NewMBB to fallthrough terminate point ?
+  //         MF.splice(std::next(MBBPred->getIterator()), NewMBB);
+  //         BuildMI(*MBBPred, MBBPred->end(), DebugLoc(), TII->get(TargetOpcode::G_BR)).addMBB(NewMBB);
+  //       } else {
+  //         for (MachineInstr &Term : *MBBPred) {
+  //           if(!Term.isBranch()) continue;
+  //           for (unsigned i = 0; i < Term.getNumOperands(); ++i) {
+  //             MachineOperand &Op = Term.getOperand(i);
+  //             // For all edge pointed to MBB, redirect to NewMBB;
+  //             if (Op.isMBB() && Op.getMBB() == MBB) {
+  //               Op.setMBB(NewMBB);
+  //             }
+  //           }
+  //         }
+  //       }
+  //       MBBPred->removeSuccessor(MBB);
+  //       MBBPred->addSuccessor(NewMBB);
+  //     }
+  //     ReconvBBSet.insert(NewMBB);
+  //   }
+  // }
 
   if(ReconvBBSet.size()) {
     for(auto *MBB: ReversePostOrderTraversal<MachineBasicBlock*>(&MF.front())) {
       if(ReconvBBSet.count(MBB)) {
-        if(SkipInsertMBBSet.count(MBB)) continue;
+
         auto TermIt = MBB->getFirstInstrTerminator();
-        
         BuildMI(*MBB, MBB->begin(), MBB->findDebugLoc(MBB->begin()),
         TII->get(RISCV::FSA_PRI_LOWER_N)).addImm(StartPri);
 
@@ -244,21 +210,21 @@ bool RISCVFSAPostTopo::runOnMachineFunction(MachineFunction &MF) {
     }
   }
 
-  MachineBasicBlock &EntryMBB = *MF.begin();
-  bool InsertInEntry = (EntryMBB.succ_size() > 1 && MadeChange) || (!MadeChange && InsertInExit);
-  if (InsertInEntry) {
-    MadeChange = true;
-    auto EntryTermIt = EntryMBB.getFirstTerminator();
-    BuildMI(EntryMBB, EntryTermIt, EntryMBB.findDebugLoc(EntryTermIt),
-      TII->get(RISCV::FSA_PRI_RAISE_N)).addImm(StartPri);
-  }
+  // MachineBasicBlock &EntryMBB = *MF.begin();
+  // bool InsertInEntry = true;
+  // if (InsertInEntry) {
+  //   MadeChange = true;
+  //   auto EntryTermIt = EntryMBB.getFirstTerminator();
+  //   BuildMI(EntryMBB, EntryTermIt, EntryMBB.findDebugLoc(EntryTermIt),
+  //     TII->get(RISCV::FSA_PRI_RAISE_N)).addImm(StartPri);
+  // }
 
-  if (InsertInExit) {
-    for (MachineBasicBlock *MBB : ExitMBBSet) {
-      BuildMI(*MBB, MBB->begin(), MBB->findDebugLoc(MBB->begin()),
-        TII->get(RISCV::FSA_PRI_LOWER_N)).addImm(StartPri);
-    }
-  }
+  // if (InsertInExit) {
+  //   for (MachineBasicBlock *MBB : ExitMBBSet) {
+  //     BuildMI(*MBB, MBB->begin(), MBB->findDebugLoc(MBB->begin()),
+  //       TII->get(RISCV::FSA_PRI_LOWER_N)).addImm(StartPri);
+  //   }
+  // }
   return MadeChange;
 }
 
