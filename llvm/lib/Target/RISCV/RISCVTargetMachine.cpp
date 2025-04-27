@@ -657,7 +657,7 @@ void RISCVPassConfig::addPreEmitPass2() {
   }
   bool FSAUseRelativePri = EnableFSAIPDOMLike || UseFSAICSFirst;
   bool FSAUseAbsPri =
-      (EnableFSAMinPC || EnableFSAPDomLevelBasedPriority || EnableFSAPostTopo);
+      (EnableFSAMinPC || EnableFSAPDomLevelBasedPriority);
   bool EnableFSAFunctionPriority = FSAUseAbsPri;
   if (EnableFSAFunctionPriority) {
     MCSubtargetInfo STI = *TM->getMCSubtargetInfo();
