@@ -128,6 +128,11 @@ static cl::opt<bool> EnableFSAPostTopo(
   cl::desc("Enable the post order dfs pass for divergence handling"),
   cl::init(false));
 
+static cl::opt<bool> EnableFSADTPP(
+  "fsa-dtpp", cl::Hidden,
+  cl::desc("Enable the dom tree priority propagation pass for divergence handling"),
+  cl::init(false));
+
 bool UseFSAICSFirst = false;
 static cl::opt<bool, true> EnableFSAICSFirst(
     "fsa-ics-first", cl::Hidden,
@@ -176,6 +181,7 @@ extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeRISCVTarget() {
   initializeRISCVFSAInsertMinPCPriPass(*PR);
   initializeRISCVFSAPDomLevelBasedPriorityPass(*PR);
   initializeRISCVFSAPostTopoPass(*PR);
+  initializeRISCVFSADTPPPass(*PR);
   initializeRISCVFSAIPDOMLikePass(*PR);
   initializeRISCVFSACleanUpPass(*PR);
 }
@@ -655,6 +661,14 @@ void RISCVPassConfig::addPreEmitPass2() {
       report_fatal_error("FSA post order topo pass requires XFormosaPri extension");
     addPass(createRISCVFSAPostTopoPass());
   }
+
+  if (EnableFSADTPP) {
+    MCSubtargetInfo STI = *TM->getMCSubtargetInfo();
+    if (!STI.hasFeature(RISCV::FeatureVendorXFormosaPri))
+      report_fatal_error("FSA post order topo pass requires XFormosaPri extension");
+    addPass(createRISCVFSADTPPPass());
+  }
+
   bool FSAUseRelativePri = EnableFSAIPDOMLike || UseFSAICSFirst;
   bool FSAUseAbsPri =
       (EnableFSAMinPC || EnableFSAPDomLevelBasedPriority);

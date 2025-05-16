@@ -129,6 +129,9 @@ void initializeRISCVFSAIPDOMLikePass(PassRegistry &);
 FunctionPass *createRISCVFSAPostTopoPass();
 void initializeRISCVFSAPostTopoPass(PassRegistry &);
 
+FunctionPass *createRISCVFSADTPPPass();
+void initializeRISCVFSADTPPPass(PassRegistry &);
+
 FunctionPass *createRISCVFSACleanUpPass();
 void initializeRISCVFSACleanUpPass(PassRegistry &);
 
