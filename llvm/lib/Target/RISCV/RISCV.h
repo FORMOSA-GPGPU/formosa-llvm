@@ -132,6 +132,10 @@ void initializeRISCVFSAPostTopoPass(PassRegistry &);
 FunctionPass *createRISCVFSADTPPPass();
 void initializeRISCVFSADTPPPass(PassRegistry &);
 
+
+FunctionPass *createRISCVFSAUniPriPass();
+void initializeRISCVFSAUniPriPass(PassRegistry &);
+
 FunctionPass *createRISCVFSACleanUpPass();
 void initializeRISCVFSACleanUpPass(PassRegistry &);
 
