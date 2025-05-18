@@ -94,6 +94,7 @@ void RISCVFSADTPP::initialize(MachineFunction &MF) {
   ReconvMBBSet.clear();
   ExitMBBSet.clear();
   SkipInsertMBBSet.clear();
+  CurrPri = 0;
 }
 
 bool RISCVFSADTPP::hasSelfLoop(const MachineBasicBlock& MBB) {
