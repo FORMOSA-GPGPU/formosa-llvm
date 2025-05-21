@@ -34,6 +34,11 @@ public:
   void getAnalysisUsage(AnalysisUsage &AU) const override {
     AU.addRequired<MachinePostDominatorTreeWrapperPass>();
     AU.addRequired<MachineLoopInfoWrapperPass>();
+
+    // Tell llvm this pass won't modify following passes' info, prevent redunt
+    // analysis
+    AU.addPreserved<MachinePostDominatorTreeWrapperPass>();
+    AU.addPreserved<MachineLoopInfoWrapperPass>();
     MachineFunctionPass::getAnalysisUsage(AU);
   }
 };
@@ -84,24 +89,21 @@ bool RISCVFSAIPDOMLike::runOnMachineFunction(MachineFunction &MF) {
     if (MBBIsExitBB) {
       ExitMBBSet.insert(&MBB);
     }
-
     if (MBBIsDiverged) {
+      auto *PDomNodeOrNull = PostDominatorTree->getNode(&MBB);
+      auto *ImmPostDomNodeOrNull =
+          PDomNodeOrNull ? PDomNodeOrNull->getIDom() : nullptr;
+      auto *ImmPostDomMBBOrNull =
+          ImmPostDomNodeOrNull ? ImmPostDomNodeOrNull->getBlock() : nullptr;
+
+      // Skip if immediate post dominator is null or self or immediate post
+      // dominator is exit bb exit bb will be dealed later independently
+      if (!ImmPostDomMBBOrNull || ImmPostDomMBBOrNull == &MBB ||
+          ImmPostDomMBBOrNull->succ_empty())
+        continue;
       MadeChange = true;
-      DomTreeNodeBase<MachineBasicBlock> *PDomNodeOfMBB =
-          PostDominatorTree->getNode(&MBB);
-      if (PDomNodeOfMBB && PDomNodeOfMBB->getIDom()) {
-        // immediate post dominator of MBB
-        MachineBasicBlock *ImmPostDominatorMBB =
-            PDomNodeOfMBB->getIDom()->getBlock();
-        // Skip if immediate post dominator is self or immediate post dominator
-        // is exit bb exit bb will be dealed later independently
-        if (ImmPostDominatorMBB == &MBB || ImmPostDominatorMBB->succ_empty())
-          continue;
-        DomTreeNodeBase<MachineBasicBlock> *ImmPDomNode =
-            PostDominatorTree->getNode(ImmPostDominatorMBB);
-        ImmPostDominatorMBBSet.insert(ImmPostDominatorMBB);
-        ImmPDomLevelSet.insert(ImmPDomNode->getLevel());
-      }
+      ImmPostDominatorMBBSet.insert(ImmPostDomMBBOrNull);
+      ImmPDomLevelSet.insert(ImmPostDomNodeOrNull->getLevel());
     }
   }
   int MaxPriPairCnt = 1;
@@ -124,7 +126,6 @@ bool RISCVFSAIPDOMLike::runOnMachineFunction(MachineFunction &MF) {
     }
     MaxPriPairCnt = std::max(MaxPriPairCnt, PriPairCnt);
   }
-
   if (MadeChange) {
     MachineBasicBlock &EntryMBB = *MF.begin();
     auto EntryTermIt = EntryMBB.getFirstTerminator();
