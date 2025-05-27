@@ -138,6 +138,11 @@ static cl::opt<bool> EnableFSAUniPri(
   cl::desc("Enable the uniform priority pass for divergence handling"),
   cl::init(false));
 
+static cl::opt<bool> EnableFSADFIC(
+  "fsa-dfic", cl::Hidden,
+  cl::desc("Enable the dominance frontier intersection count pass for divergence handling"),
+  cl::init(false));
+
 bool UseFSAICSFirst = false;
 static cl::opt<bool, true> EnableFSAICSFirst(
     "fsa-ics-first", cl::Hidden,
@@ -188,6 +193,7 @@ extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeRISCVTarget() {
   initializeRISCVFSAPostTopoPass(*PR);
   initializeRISCVFSADTPPPass(*PR);
   initializeRISCVFSAUniPriPass(*PR);
+  initializeRISCVFSADFICPass(*PR);
   initializeRISCVFSAIPDOMLikePass(*PR);
   initializeRISCVFSACleanUpPass(*PR);
 }
@@ -680,6 +686,13 @@ void RISCVPassConfig::addPreEmitPass2() {
     if (!STI.hasFeature(RISCV::FeatureVendorXFormosaPri))
       report_fatal_error("FSA uniform pri pass requires XFormosaPri extension");
     addPass(createRISCVFSAUniPriPass());
+  }
+
+  if (EnableFSADFIC) {
+    MCSubtargetInfo STI = *TM->getMCSubtargetInfo();
+    if (!STI.hasFeature(RISCV::FeatureVendorXFormosaPri))
+      report_fatal_error("FSA df intersection cnt pass requires XFormosaPri extension");
+    addPass(createRISCVFSADFICPass());
   }
 
   bool FSAUseRelativePri = EnableFSAIPDOMLike || UseFSAICSFirst;
