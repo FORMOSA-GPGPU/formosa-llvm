@@ -159,6 +159,11 @@ static cl::opt<bool> EnableFSAIPDOMLike(
     cl::desc("Enable the IPDOM-like pass for divergence handling"),
     cl::init(false));
 
+cl::opt<int> FSAMaxPri(
+  "fsa-max-pri", cl::Hidden,
+  cl::desc("Set max allowable pri for quantization pri pass"),
+  cl::init(8));
+
 extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeRISCVTarget() {
   RegisterTargetMachine<RISCVTargetMachine> X(getTheRISCV32Target());
   RegisterTargetMachine<RISCVTargetMachine> Y(getTheRISCV64Target());
@@ -196,6 +201,7 @@ extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeRISCVTarget() {
   initializeRISCVFSADFICPass(*PR);
   initializeRISCVFSAIPDOMLikePass(*PR);
   initializeRISCVFSACleanUpPass(*PR);
+  initializeRISCVFSAPriQuantPass(*PR);
 }
 
 static StringRef computeDataLayout(const Triple &TT,
@@ -695,7 +701,7 @@ void RISCVPassConfig::addPreEmitPass2() {
     addPass(createRISCVFSADFICPass());
   }
 
-  bool FSAUseRelativePri = EnableFSAIPDOMLike || UseFSAICSFirst;
+  bool FSAUseRelativePri = EnableFSAIPDOMLike || UseFSAICSFirst || EnableFSAPostTopo || EnableFSADFIC || EnableFSADTPP;
   bool FSAUseAbsPri =
       (EnableFSAMinPC || EnableFSAPDomLevelBasedPriority);
   bool EnableFSAFunctionPriority = FSAUseAbsPri;
@@ -708,11 +714,9 @@ void RISCVPassConfig::addPreEmitPass2() {
     addPass(createRISCVFSAInsertFunctPriPass());
   }
 
-  if (FSAUseRelativePri) {
-    MCSubtargetInfo STI = *TM->getMCSubtargetInfo();
-    if (!STI.hasFeature(RISCV::FeatureVendorXFormosaPri))
-      report_fatal_error("FSA clean up pass requires XFormosaPri extension");
+  if (TM->getMCSubtargetInfo()->hasFeature(RISCV::FeatureVendorXFormosaPri)) {
     addPass(createRISCVFSACleanUpPass());
+    addPass(createRISCVFSAPriQuantPass());
   }
 }
 
