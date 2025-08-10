@@ -60,7 +60,6 @@ bool RISCVFSAPriQuant::runOnMachineFunction(MachineFunction &MF) {
                 "\n\n\n";);
   bool MadeChange = false;
   initialize(MF);
-  llvm::dbgs() << "Quant pri with max pri = " << FSAMaxPri << "\n";
 
   // Skip insertion only when opt level is not none
   bool AllowSkip = (MF.getTarget().getOptLevel() != CodeGenOptLevel::None);
@@ -72,7 +71,6 @@ bool RISCVFSAPriQuant::runOnMachineFunction(MachineFunction &MF) {
                          "instructions insertion\n");
     return false;
   }
-  llvm::dbgs() << "Quant pri with max pri = " << FSAMaxPri << "\n";
 
   std::set<int> FSAPriSet;
   std::unordered_map<int, int> PriRank;
