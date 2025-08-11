@@ -160,6 +160,11 @@ static cl::opt<bool> EnableFSAIPDOMLike(
     cl::init(false));
 
 // Following flags cannot be marked as static because they are used in externel passes
+cl::opt<bool> FSASkipMutualLoop(
+    "fsa-skip-mutual-loop", cl::Hidden,
+    cl::desc("Skip insertion if meet mutual loop (A->B and B->A)"),
+    cl::init(true));
+
 cl::opt<int> FSAMaxPri(
   "fsa-max-pri", cl::Hidden,
   cl::desc("Set max allowable pri for quantization pri pass"),
