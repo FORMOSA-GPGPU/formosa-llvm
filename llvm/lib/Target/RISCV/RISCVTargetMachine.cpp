@@ -159,10 +159,16 @@ static cl::opt<bool> EnableFSAIPDOMLike(
     cl::desc("Enable the IPDOM-like pass for divergence handling"),
     cl::init(false));
 
+// Following flags cannot be marked as static because they are used in externel passes
 cl::opt<int> FSAMaxPri(
   "fsa-max-pri", cl::Hidden,
   cl::desc("Set max allowable pri for quantization pri pass"),
   cl::init(8));
+
+cl::opt<int> FSAPriDupCount(
+  "fsa-pri-dup-count", cl::Hidden,
+  cl::desc("Number of times to duplicate fsa.pri instructions for profiling (default: 0)"),
+  cl::init(0));
 
 extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeRISCVTarget() {
   RegisterTargetMachine<RISCVTargetMachine> X(getTheRISCV32Target());
@@ -201,6 +207,7 @@ extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeRISCVTarget() {
   initializeRISCVFSADFICPass(*PR);
   initializeRISCVFSAIPDOMLikePass(*PR);
   initializeRISCVFSACleanUpPass(*PR);
+  initializeRISCVFSAPriDupPass(*PR);
   initializeRISCVFSAPriQuantPass(*PR);
 }
 
@@ -715,7 +722,12 @@ void RISCVPassConfig::addPreEmitPass2() {
   }
 
   if (TM->getMCSubtargetInfo()->hasFeature(RISCV::FeatureVendorXFormosaPri)) {
-    addPass(createRISCVFSACleanUpPass());
+    if(FSAPriDupCount == 0) {
+      // CleanUpPass will merge duplicated inst into one, cause PriDupCount takes no effect
+      addPass(createRISCVFSACleanUpPass());
+    } else {
+      addPass(createRISCVFSAPriDupPass());
+    }
     addPass(createRISCVFSAPriQuantPass());
   }
 }

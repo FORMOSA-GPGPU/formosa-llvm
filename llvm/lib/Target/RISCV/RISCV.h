@@ -144,6 +144,9 @@ void initializeRISCVFSACleanUpPass(PassRegistry &);
 
 FunctionPass *createRISCVFSAPriQuantPass();
 void initializeRISCVFSAPriQuantPass(PassRegistry &);
+
+FunctionPass *createRISCVFSAPriDupPass();
+void initializeRISCVFSAPriDupPass(PassRegistry &);
 } // namespace llvm
 
 #endif
