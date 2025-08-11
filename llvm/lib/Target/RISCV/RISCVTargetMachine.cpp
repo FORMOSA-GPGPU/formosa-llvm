@@ -160,6 +160,11 @@ static cl::opt<bool> EnableFSAIPDOMLike(
     cl::init(false));
 
 // Following flags cannot be marked as static because they are used in externel passes
+cl::opt<bool> FSAFusePriInst(
+    "fsa-fuse-pri", cl::Hidden,
+    cl::desc("Fused multiple pri raise/lower into single raise_n/lower_n, default true"),
+    cl::init(true));
+
 cl::opt<bool> FSASkipMutualLoop(
     "fsa-skip-mutual-loop", cl::Hidden,
     cl::desc("Skip insertion if meet mutual loop (A->B and B->A)"),
