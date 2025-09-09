@@ -30,7 +30,8 @@
 using namespace llvm;
 #define DEBUG_TYPE "RISCVFSAPostTopo"
 extern cl::opt<bool> FSASkipMutualLoop;
-
+extern cl::opt<int> FSABBNum;
+extern cl::opt<int> FSAInstrCnt;
 namespace {
 class RISCVFSAPostTopo : public MachineFunctionPass {
 private:
@@ -40,6 +41,7 @@ private:
   MachineLoopInfo *MLI;
   MachineCycleInfo *MCI;
   MachinePostDominatorTree *MPDT;
+  MachineBasicBlock::iterator afterNthMI(MachineBasicBlock &MBB, unsigned N);
 
 public:
   static char ID;
@@ -86,6 +88,28 @@ void RISCVFSAPostTopo::initialize(MachineFunction &MF) {
   MPDT = &getAnalysis<MachinePostDominatorTreeWrapperPass>().getPostDomTree();
   TII = ST.getInstrInfo();
   TRI = ST.getRegisterInfo();
+}
+
+MachineBasicBlock::iterator RISCVFSAPostTopo::afterNthMI(MachineBasicBlock &MBB, unsigned N) {
+  auto FirstTerm = MBB.getFirstInstrTerminator();
+  if (N == 0) return MBB.begin();
+  unsigned MICnt = 0;
+  for(auto It = MBB.begin(); It != FirstTerm; ++It) {
+    ++MICnt;
+    if (MICnt == N) {
+      auto Tail = It;
+      // Keep going if Tail is inside bundel until FirstTerm
+      while(Tail->isInsideBundle() && std::next(Tail) != FirstTerm) {
+        ++Tail;
+      }
+      auto InsertPt = std::next(Tail);
+      if(InsertPt == MBB.end())
+        InsertPt = FirstTerm;
+      return InsertPt;
+    }
+  }
+  // There is no enough Instr inside given BB, return terminator
+  return FirstTerm;
 }
 
 bool RISCVFSAPostTopo::hasSelfLoop(const MachineBasicBlock& MBB) {
@@ -195,19 +219,20 @@ bool RISCVFSAPostTopo::runOnMachineFunction(MachineFunction &MF) {
       if(MBB->succ_empty()) {
         ExitMBBSet.insert(MBB);
       }
+      auto InsertAfter = (FSABBNum == MBB->getNumber() && FSAInstrCnt >= 0) ? FSAInstrCnt : 0;
       if(ReconvBBSet.count(MBB) && !hasFSABar(*MBB)) {
         if (canInsertSingleLower(MF, *MBB)) {
-          BuildMI(*MBB, MBB->begin(), MBB->findDebugLoc(MBB->begin()),
-          TII->get(RISCV::FSA_PRI_LOWER_N)).addImm(1);
+          BuildMI(*MBB, afterNthMI(*MBB, InsertAfter), MBB->findDebugLoc(MBB->begin()),
+            TII->get(RISCV::FSA_PRI_LOWER_N)).addImm(1);
           SingleLowCnt++;
           LastInsertBB = MBB;
         } else {
           GuardPriCnt++;
           auto TermIt = MBB->getFirstInstrTerminator();
-          BuildMI(*MBB, MBB->begin(), MBB->findDebugLoc(MBB->begin()),
-          TII->get(RISCV::FSA_PRI_LOWER_N)).addImm(GuardPriCnt);
+          BuildMI(*MBB, afterNthMI(*MBB, InsertAfter), MBB->findDebugLoc(MBB->begin()),
+            TII->get(RISCV::FSA_PRI_LOWER_N)).addImm(GuardPriCnt);
           BuildMI(*MBB, TermIt, MBB->findDebugLoc(TermIt),
-          TII->get(RISCV::FSA_PRI_RAISE_N)).addImm(GuardPriCnt);
+            TII->get(RISCV::FSA_PRI_RAISE_N)).addImm(GuardPriCnt);
           LastInsertBB = nullptr;
         }
         MadeChange = true;
@@ -225,6 +250,7 @@ bool RISCVFSAPostTopo::runOnMachineFunction(MachineFunction &MF) {
   int NeedLower = GuardPriCnt;
   if (InsertInExit && NeedLower > 0) {
     for (MachineBasicBlock *MBB : ExitMBBSet) {
+      auto InsertAfter = (FSABBNum == MBB->getNumber() && FSAInstrCnt >= 0) ? FSAInstrCnt : 0;
       if (ReconvBBSet.count(MBB)) {
         int RaisedPri = 0;
         int Delta = NeedLower;
@@ -247,13 +273,13 @@ bool RISCVFSAPostTopo::runOnMachineFunction(MachineFunction &MF) {
             }
           }
           if (Delta != 0) {
-            BuildMI(*MBB, MBB->begin(), MBB->findDebugLoc(MBB->begin()),
-            TII->get(RISCV::FSA_PRI_LOWER_N)).addImm(Delta);
+            BuildMI(*MBB, afterNthMI(*MBB, InsertAfter), MBB->findDebugLoc(MBB->begin()),
+              TII->get(RISCV::FSA_PRI_LOWER_N)).addImm(Delta);
           }
         }
       } else {
-        BuildMI(*MBB, MBB->begin(), MBB->findDebugLoc(MBB->begin()),
-        TII->get(RISCV::FSA_PRI_LOWER_N)).addImm(NeedLower);
+        BuildMI(*MBB, afterNthMI(*MBB, InsertAfter), MBB->findDebugLoc(MBB->begin()),
+          TII->get(RISCV::FSA_PRI_LOWER_N)).addImm(NeedLower);
       }
       MadeChange = true;
     }

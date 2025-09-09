@@ -180,6 +180,18 @@ cl::opt<int> FSAPriDupCount(
   cl::desc("Number of times to duplicate fsa.pri instructions for profiling (default: 0)"),
   cl::init(0));
 
+cl::opt<int> FSABBNum(
+  "fsa-bb-num", cl::Hidden,
+  cl::desc("Set specific bb num for experiments"),
+  cl::init(-1)
+);
+
+cl::opt<int> FSAInstrCnt(
+  "fsa-instr-cnt", cl::Hidden,
+  cl::desc("Set specific InstrCnt for experiments"),
+  cl::init(-1)
+);
+
 extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeRISCVTarget() {
   RegisterTargetMachine<RISCVTargetMachine> X(getTheRISCV32Target());
   RegisterTargetMachine<RISCVTargetMachine> Y(getTheRISCV64Target());
