@@ -29,8 +29,7 @@ set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
   ptx-nvidiacl/lib/SOURCES;
   r600/lib/SOURCES;
   spirv/lib/SOURCES;
-  spirv64/lib/SOURCES;
-  formosa-gpgpu/lib/SOURCES;
+  spirv64/lib/SOURCES
 )
 
 set( LIBCLC_MIN_LLVM 3.9.0 )
@@ -123,7 +122,6 @@ set( LIBCLC_TARGETS_ALL
   nvptx64--
   nvptx--nvidiacl
   nvptx64--nvidiacl
-  riscv64-unknown-elf
 )
 
 # mesa3d environment is only available since LLVM 4.0
@@ -193,7 +191,6 @@ set( nvptx--nvidiacl_devices none )
 set( nvptx64--nvidiacl_devices none )
 set( spirv-mesa3d-_devices none )
 set( spirv64-mesa3d-_devices none )
-set( riscv64-unknown-elf_devices formosa-gpgpu )
 
 # Setup aliases
 set( cedar_aliases palm sumo sumo2 redwood juniper )
@@ -253,17 +250,9 @@ foreach( t ${LIBCLC_TARGETS_TO_BUILD} )
   list( GET TRIPLE 2 OS )
 
   set( dirs )
-  set( exclude_files )
 
-  if( ${ARCH} STREQUAL riscv64 )
-    list( APPEND dirs formosa-gpgpu )
-    file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/formosa-gpgpu/lib/EXCLUDES" exclude_files)
-  endif()
-
-  if ( NOT ${ARCH} STREQUAL spirv AND 
-       NOT ${ARCH} STREQUAL spirv64 AND
-       NOT ${ARCH} STREQUAL clspv AND 
-       NOT ${ARCH} STREQUAL clspv64 )
+  if ( NOT ${ARCH} STREQUAL spirv AND NOT ${ARCH} STREQUAL spirv64 AND
+       NOT ${ARCH} STREQUAL clspv AND NOT ${ARCH} STREQUAL clspv64)
     LIST( APPEND dirs generic )
   endif()
 
@@ -314,13 +303,6 @@ foreach( t ${LIBCLC_TARGETS_TO_BUILD} )
     string( REPLACE "\n" ";" file_list ${file_list} )
     get_filename_component( dir ${l} DIRECTORY )
     foreach( f ${file_list} )
-      
-      if("${dir}/${f}" IN_LIST exclude_files)
-          # Skip the file if it is in exclude list
-          message( STATUS "  excluding: ${dir}/${f}" )
-          continue()
-      endif()
-
       # Only add each file once, so that targets can 'specialize' builtins
       if( NOT ${f} IN_LIST objects )
         list( APPEND objects ${f} )
