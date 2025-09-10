@@ -5,7 +5,7 @@ def FormosaModel : SchedMachineModel {
     // Do not use any other possible model assumption when scheduling
     let CompleteModel = 0;  // Whether all instructions is well-defined in this model
 
-    let IssueWidth = 2;
+    let IssueWidth = 1;
     
     // Need to check following:
     // MicroOpBufferSize = 1 means that instructions will always be added
@@ -22,7 +22,7 @@ def FormosaModel : SchedMachineModel {
     let PostRAScheduler = 1;
 
     // TODO: profile for best penalty value
-    int MispredictPenalty = 2;
+    int MispredictPenalty = 20;
 
     let UnsupportedFeatures = [HasStdExtZbkb, HasStdExtZbkc, HasStdExtZbkx,
                                 HasStdExtZcmt, HasStdExtZknd, HasStdExtZkne,
@@ -32,18 +32,18 @@ def FormosaModel : SchedMachineModel {
 
 // BufferSize : refer to kInstrQueue
 let BufferSize = 2 in {
-    def FormosaUnitIALU       : ProcResource<1>; // Int ALU(w/o Mult and Div)
-    def FormosaUnitIMul       : ProcResource<1>; // Int Mult Unit
-    def FormosaUnitIDIV       : ProcResource<1>; // Int Div Unit
-    def FormosaUnitFPALU      : ProcResource<1>; // FP ALU, currently not modeling in simtix
-    def FormosaUnitFPDivSqrt  : ProcResource<1>; // FP DivSqrt Unit, currently not modeling in simtix
-    def FormosaMisc           : ProcResource<1>;
+    def FormosaUnitIALU       : ProcResource<32>; // Int ALU(w/o Mult and Div)
+    def FormosaUnitIMul       : ProcResource<32>; // Int Mult Unit
+    def FormosaUnitIDIV       : ProcResource<32>; // Int Div Unit
+    def FormosaUnitFPALU      : ProcResource<32>; // FP ALU, currently not modeling in simtix
+    def FormosaUnitFPDivSqrt  : ProcResource<32>; // FP DivSqrt Unit, currently not modeling in simtix
+    def FormosaMisc           : ProcResource<32>;
     // def FormosaUnitB          : ProcResource<1>; // Branch, currently unused
 }
 
 // possible more BufferSize ?
 let BufferSize = 8 in {
-    def FormosaUnitMem        : ProcResource<1>; // Load/Store
+    def FormosaUnitMem        : ProcResource<32>; // Load/Store
 }
 
 //===----------------------------------------------------------------------===//
@@ -80,7 +80,7 @@ def : WriteRes<WriteIRem, [FormosaUnitIDIV]>;
 }
 
 // Memory
-let Latency = 1 in {
+let Latency = 4 in {
 def : WriteRes<WriteSTB, [FormosaUnitMem]>;
 def : WriteRes<WriteSTH, [FormosaUnitMem]>;
 def : WriteRes<WriteSTW, [FormosaUnitMem]>;
