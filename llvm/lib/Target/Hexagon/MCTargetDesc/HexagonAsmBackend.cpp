@@ -54,7 +54,7 @@ class HexagonAsmBackend : public MCAsmBackend {
 
     // Update the fragment.
     RF.setInst(HMB);
-    RF.getContents() = Code;
+    RF.setContents(Code);
     RF.getFixups() = Fixups;
   }
 
@@ -201,7 +201,7 @@ public:
   }
 
   bool shouldForceRelocation(const MCAssembler &Asm, const MCFixup &Fixup,
-                             const MCValue &Target,
+                             const MCValue &Target, const uint64_t,
                              const MCSubtargetInfo *STI) override {
     switch(Fixup.getTargetKind()) {
       default:
@@ -702,7 +702,7 @@ public:
     return true;
   }
 
-  bool finishLayout(const MCAssembler &Asm) const override {
+  void finishLayout(MCAssembler const &Asm) const override {
     SmallVector<MCFragment *> Frags;
     for (MCSection &Sec : Asm) {
       Frags.clear();
@@ -728,6 +728,24 @@ public:
               MCContext &Context = Asm.getContext();
               auto &RF = cast<MCRelaxableFragment>(*Frags[K]);
               auto &Inst = const_cast<MCInst &>(RF.getInst());
+
+              const bool WouldTraverseLabel = llvm::any_of(
+                  Asm.symbols(), [&Asm, &RF, &Inst](MCSymbol const &sym) {
+                    uint64_t Offset = 0;
+                    const bool HasOffset = Asm.getSymbolOffset(sym, Offset);
+                    const unsigned PacketSizeBytes =
+                        HexagonMCInstrInfo::bundleSize(Inst) *
+                        HEXAGON_INSTR_SIZE;
+                    const bool OffsetPastSym =
+                        Offset <= (Asm.getFragmentOffset(RF) + PacketSizeBytes);
+                    return !sym.isVariable() && Offset != 0 && HasOffset &&
+                           OffsetPastSym;
+                  });
+              if (WouldTraverseLabel) {
+                Size = 0;
+                break;
+              }
+
               while (Size > 0 &&
                      HexagonMCInstrInfo::bundleSize(Inst) < MaxPacketSize) {
                 MCInst *Nop = Context.createMCInst();
@@ -747,6 +765,7 @@ public:
               //assert(!Error);
               (void)Error;
               ReplaceInstruction(Asm.getEmitter(), RF, Inst);
+              Sec.setHasLayout(false);
               Size = 0; // Only look back one instruction
               break;
             }
@@ -756,7 +775,6 @@ public:
         }
       }
     }
-    return true;
   }
 }; // class HexagonAsmBackend
 

@@ -444,16 +444,17 @@ struct ParallelOpLowering : public OpRewritePattern<scf::ParallelOp> {
     // Create the parallel wrapper.
     auto ompParallel = rewriter.create<omp::ParallelOp>(
         loc,
-        /* if_expr = */ Value{},
-        /* num_threads = */ numThreadsVar,
         /* allocate_vars = */ llvm::SmallVector<Value>{},
         /* allocator_vars = */ llvm::SmallVector<Value>{},
+        /* if_expr = */ Value{},
+        /* num_threads = */ numThreadsVar,
+        /* private_vars = */ ValueRange(),
+        /* private_syms = */ nullptr,
+        /* proc_bind_kind = */ omp::ClauseProcBindKindAttr{},
+        /* reduction_mod = */ nullptr,
         /* reduction_vars = */ llvm::SmallVector<Value>{},
         /* reduction_byref = */ DenseBoolArrayAttr{},
-        /* reduction_syms = */ ArrayAttr{},
-        /* proc_bind_kind = */ omp::ClauseProcBindKindAttr{},
-        /* private_vars = */ ValueRange(),
-        /* private_syms = */ nullptr);
+        /* reduction_syms = */ ArrayAttr{});
     {
 
       OpBuilder::InsertionGuard guard(rewriter);
@@ -487,9 +488,6 @@ struct ParallelOpLowering : public OpRewritePattern<scf::ParallelOp> {
             &wsloopOp.getRegion(), {}, reductionTypes,
             llvm::SmallVector<mlir::Location>(reductionVariables.size(),
                                               parallelOp.getLoc()));
-
-        rewriter.setInsertionPoint(
-            rewriter.create<omp::TerminatorOp>(parallelOp.getLoc()));
 
         // Create loop nest and populate region with contents of scf.parallel.
         auto loopOp = rewriter.create<omp::LoopNestOp>(

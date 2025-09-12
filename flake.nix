@@ -2,7 +2,7 @@
   description = "LLVM compiler for FORMOSA GPGPU";
 
   inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs?ref=release-24.11";
+    nixpkgs.url = "github:nixos/nixpkgs?ref=release-25.05";
     flake-utils.url = "github:numtide/flake-utils";
   };
 
@@ -28,17 +28,16 @@
         {
           name = "formosa-llvm";
           cmakeFlags = [
-            "-DLLVM_ENABLE_PROJECTS='clang;lld;libclc'"
+            "-DLLVM_ENABLE_PROJECTS='clang;lld'"
             "-DCMAKE_BUILD_TYPE=Release"
             "-DCMAKE_C_COMPILER=gcc"
             "-DCMAKE_CXX_COMPILER=g++"
             "-DLLVM_DEFAULT_TARGET_TRIPLE=riscv64-unknown-elf"
             "-DLLVM_TARGETS_TO_BUILD='RISCV;X86'"
             "-DLLVM_USE_LINKER=lld"
-            "-DLIBCLC_TARGETS_TO_BUILD='riscv64-unknown-elf'"
             "-DLLVM_BUILD_LLVM_DYLIB=ON"
           ];
-          
+
           packages = with pkgs; [
             cmake
             ninja
