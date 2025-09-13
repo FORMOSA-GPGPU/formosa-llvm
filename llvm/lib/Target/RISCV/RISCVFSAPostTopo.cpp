@@ -197,7 +197,10 @@ bool RISCVFSAPostTopo::runOnMachineFunction(MachineFunction &MF) {
 
   for(MachineBasicBlock &MBB: MF) {
     bool CanSkip = hasSelfLoop(MBB) && (MBB.pred_size() < 3);
-    if(MBB.pred_size() > 1) {
+    // observing psort found that its not that meaningful to ensure reconv
+    // at a reconverge point with following diverge point
+    // TODO: Still insert lower when such BB has relevant large code body (i.e. inst > 8)
+    if(MBB.pred_size() > MBB.succ_size()) {
       if (SkipLoopHeader) {
         if(!CanSkip && !SkipInsertMBBSet.count(&MBB) && !hasFSABar(MBB))
           ReconvBBSet.insert(&MBB);
