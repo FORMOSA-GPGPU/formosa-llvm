@@ -67,10 +67,7 @@ bool RISCVFSAInsertMinPCPri::runOnMachineFunction(MachineFunction &MF) {
 
   unsigned int NumMBBs = MF.getNumBlockIDs();
   LLVM_DEBUG(dbgs() << "Number of MBBs: " << NumMBBs << "\n");
-  if (NumMBBs > 63) {
-    report_fatal_error("Number of basic blocks exceeds 63, cannot insert "
-                       "fsa.pri.set instructions");
-  }
+
   for (MachineBasicBlock &MBB : MF) {
     // set the priority based on the occurrence of basic blocks, basic blocks
     // with lower PC value have higher priority
