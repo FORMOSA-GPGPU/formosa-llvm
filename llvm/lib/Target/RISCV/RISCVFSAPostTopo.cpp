@@ -127,13 +127,6 @@ bool RISCVFSAPostTopo::hasFSABar(MachineBasicBlock& MBB) {
       NoWBeforBar = false;
     if (MI.getOpcode() == RISCV::FSA_BAR){
       MBB.splice(MBB.begin(), &MBB, MI.getIterator());
-      if (NoWBeforBar) {
-        llvm::dbgs() << "No W before Bar in BB" << MBB.getNumber() << "\n\n";
-        for (auto &MI : MBB) {
-          llvm::dbgs() << MI;
-        }
-        llvm::dbgs() << "\n\n";
-      }
       return NoWBeforBar;
     }
   }
@@ -144,10 +137,6 @@ bool RISCVFSAPostTopo::canInsertSingleLower(MachineFunction &MF, MachineBasicBlo
   MachineBasicBlock *FunctionEntry = &MF.front();
   bool MBBPostDomEntry = MPDT->dominates(&MBB, FunctionEntry);
   bool MBBNotInCycle = MCI->getCycle(&MBB) == nullptr;
-  // llvm::dbgs() << "MBB" << MBB.getNumber() << " PostDomEntry = " << MBBPostDomEntry << "\n";
-  // llvm::dbgs() << "MBB" << MBB.getNumber() << " NotInCycle = " << MBBNotInCycle << "\n";
-  llvm::dbgs() << "MBB" << MBB.getNumber() << " CanInsertSingle = " << (MBBNotInCycle && MBBPostDomEntry) << "\n";
-
   return MBBPostDomEntry && MBBNotInCycle;
 }
 
@@ -181,7 +170,6 @@ bool RISCVFSAPostTopo::runOnMachineFunction(MachineFunction &MF) {
   bool InsertInExit = true;  
   bool SkipLoopHeader = true; // Skip insert in loop header and BBs having selfLoop
   bool TailInversion = false; // The raise of last pri pair (lower ... raise) is moved to entryBB if possible
-  llvm::dbgs() << "Running RISCVFSAPostTopo on function: " << MF.getName() << "\n";
   MachineBasicBlock *LastInsertBB;
   for (auto *Loop : *MLI) {
     auto *MBB = Loop->getHeader();
@@ -287,10 +275,6 @@ bool RISCVFSAPostTopo::runOnMachineFunction(MachineFunction &MF) {
       MadeChange = true;
     }
   }
-  if (SingleLowCnt - 1 > 0)
-    llvm::dbgs() << "Save " << SingleLowCnt - 1 << " pri raise inst\n\n";
-  else
-    llvm::dbgs() << "\n\n";
   return MadeChange;
 }
 
