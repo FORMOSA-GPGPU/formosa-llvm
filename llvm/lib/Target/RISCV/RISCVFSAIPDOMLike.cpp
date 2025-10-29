@@ -121,7 +121,7 @@ bool RISCVFSAIPDOMLike::runOnMachineFunction(MachineFunction &MF) {
     auto MBBTermIt = MBB->getFirstTerminator();
 
     // Insert Raise at end to resume higher priority
-    BuildMI(*MBB, MBB->begin(), MBB->findDebugLoc(MBB->begin()),
+    BuildMI(*MBB, MBBTermIt, MBB->findDebugLoc(MBBTermIt),
       TII->get(RISCV::FSA_PRI_RAISE_N)).addImm(PriPairCnt);
     MaxPriPairCnt = std::max(MaxPriPairCnt, PriPairCnt);
   }
