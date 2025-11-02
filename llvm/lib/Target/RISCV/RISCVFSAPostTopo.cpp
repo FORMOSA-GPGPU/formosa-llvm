@@ -30,6 +30,7 @@
 using namespace llvm;
 #define DEBUG_TYPE "RISCVFSAPostTopo"
 extern cl::opt<bool> FSASkipMutualLoop;
+extern cl::opt<bool> FSASkipLoopHeader;
 extern cl::opt<int> FSABBNum;
 extern cl::opt<int> FSAInstrCnt;
 namespace {
@@ -215,29 +216,31 @@ bool RISCVFSAPostTopo::runOnMachineFunction(MachineFunction &MF) {
   std::unordered_set<MachineBasicBlock *> NeedInsertMBBSet;
   std::unordered_set<MachineBasicBlock *> SkipInsertMBBSet;
   bool InsertInExit = true;  
-  bool SkipLoopHeader = true; // Skip insert in loop header and BBs having selfLoop
+  bool SkipLoopHeader = FSASkipLoopHeader; // Skip insert in loop header and BBs having selfLoop
   bool TailInversion = false; // The raise of last pri pair (lower ... raise) is moved to entryBB if possible
   MachineBasicBlock *LastInsertBB;
-  for (auto *Loop : *MLI) {
-    auto *MBB = Loop->getHeader();
-    if (MBB && MBB->pred_size() <= 2)
-      SkipInsertMBBSet.insert(MBB);
-
-    for (auto *SubLoop : *Loop) {
-      auto *MBB = SubLoop->getHeader();
+  if(SkipLoopHeader) {
+    for (auto *Loop : *MLI) {
+      auto *MBB = Loop->getHeader();
       if (MBB && MBB->pred_size() <= 2)
         SkipInsertMBBSet.insert(MBB);
+
+      for (auto *SubLoop : *Loop) {
+        auto *MBB = SubLoop->getHeader();
+        if (MBB && MBB->pred_size() <= 2)
+          SkipInsertMBBSet.insert(MBB);
+      }
     }
   }
 
   for(MachineBasicBlock &MBB: MF) {
-    bool CanSkip = hasSelfLoop(MBB) && (MBB.pred_size() < 3);
+    bool CanSkipLoop = hasSelfLoop(MBB) && (MBB.pred_size() < 3);
     // observing psort found that its not that meaningful to ensure reconv
     // at a reconverge point with following diverge point
     // TODO: Still insert lower when such BB has relevant large code body (i.e. inst > 8)
     if(MBB.pred_size() > MBB.succ_size()) {
       if (SkipLoopHeader) {
-        if(!CanSkip && !SkipInsertMBBSet.count(&MBB) && !hasFSABar(MBB))
+        if(!CanSkipLoop && !SkipInsertMBBSet.count(&MBB) && !hasFSABar(MBB))
           ReconvBBSet.insert(&MBB);
       } else {
         if (!hasFSABar(MBB))

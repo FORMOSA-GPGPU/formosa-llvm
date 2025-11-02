@@ -170,6 +170,12 @@ cl::opt<bool> FSASkipMutualLoop(
     cl::desc("Skip insertion if meet mutual loop (A->B and B->A)"),
     cl::init(true));
 
+cl::opt<bool> FSASkipLoopHeader(
+  "fsa-skip-loop-header", cl::Hidden,
+  cl::desc("Skip reconv BBs that are belongs to loop header"),
+  cl::init(true)
+);
+
 cl::opt<int> FSAMaxPri(
   "fsa-max-pri", cl::Hidden,
   cl::desc("Set max allowable pri for quantization pri pass"),
