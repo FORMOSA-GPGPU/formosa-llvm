@@ -42,6 +42,7 @@ private:
   MachineCycleInfo *MCI;
   MachinePostDominatorTree *MPDT;
   MachineBasicBlock::iterator afterNthMI(MachineBasicBlock &MBB, unsigned N);
+  MachineBasicBlock::iterator firstPromising(MachineBasicBlock &MBB);
 
 public:
   static char ID;
@@ -110,6 +111,52 @@ MachineBasicBlock::iterator RISCVFSAPostTopo::afterNthMI(MachineBasicBlock &MBB,
   }
   // There is no enough Instr inside given BB, return terminator
   return FirstTerm;
+}
+
+// Return first promising pri insertion point
+MachineBasicBlock::iterator RISCVFSAPostTopo::firstPromising(MachineBasicBlock &MBB) {
+  const int SkipLoad = 2;
+  auto FirstTerm = MBB.getFirstInstrTerminator();
+  if (FirstTerm == MBB.begin())
+    return FirstTerm;
+
+  auto It = MBB.begin();
+
+  // Check a load is load-from-memory but not load-immediate
+  auto RealLoad = [](const MachineInstr &MI) {
+    if (!MI.mayLoad())
+      return false;
+
+    unsigned Opc = MI.getOpcode();
+    switch (Opc) {
+      case RISCV::ADDI:
+      case RISCV::LUI:
+      case RISCV::ADDIW:
+        return false;
+      default:
+        return true;
+    }
+  };
+
+  // Skip at most 2 RealLoad
+  if (RealLoad(*It)) {
+    int Count = 0;
+    for (; It != FirstTerm && Count < SkipLoad; ++It, ++Count) {
+      if (!RealLoad(*It))
+        break;
+    }
+  }
+
+  auto Tail = It;
+  while (Tail != FirstTerm && Tail->isInsideBundle() && std::next(Tail) != FirstTerm) {
+    ++Tail;
+  }
+
+  auto InsertPt = std::next(Tail);
+  if (InsertPt == MBB.end())
+    InsertPt = FirstTerm;
+
+  return InsertPt;
 }
 
 bool RISCVFSAPostTopo::hasSelfLoop(const MachineBasicBlock& MBB) {
