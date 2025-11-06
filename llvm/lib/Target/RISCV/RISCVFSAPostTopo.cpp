@@ -227,11 +227,17 @@ bool RISCVFSAPostTopo::runOnMachineFunction(MachineFunction &MF) {
   }
 
   if(ReconvBBSet.size()) {
-    for(auto *MBB: post_order(&MF.front())) {
+    for(auto *MBB: ReversePostOrderTraversal<MachineBasicBlock*>(&MF.front())) {
       if(ReconvBBSet.count(MBB)) {
         if(SkipInsertMBBSet.count(MBB)) continue;
+        auto TermIt = MBB->getFirstInstrTerminator();
+        
         BuildMI(*MBB, MBB->begin(), MBB->findDebugLoc(MBB->begin()),
-        TII->get(RISCV::FSA_PRI_SET)).addImm(StartPri);
+        TII->get(RISCV::FSA_PRI_LOWER_N)).addImm(StartPri);
+
+        BuildMI(*MBB, TermIt, MBB->findDebugLoc(TermIt),
+        TII->get(RISCV::FSA_PRI_RAISE_N)).addImm(StartPri);
+
         StartPri++;
         MadeChange = true;
       }
@@ -244,15 +250,13 @@ bool RISCVFSAPostTopo::runOnMachineFunction(MachineFunction &MF) {
     MadeChange = true;
     auto EntryTermIt = EntryMBB.getFirstTerminator();
     BuildMI(EntryMBB, EntryTermIt, EntryMBB.findDebugLoc(EntryTermIt),
-      TII->get(RISCV::FSA_PRI_SET)).addImm(StartPri);
+      TII->get(RISCV::FSA_PRI_RAISE_N)).addImm(StartPri);
   }
 
   if (InsertInExit) {
     for (MachineBasicBlock *MBB : ExitMBBSet) {
-      if (hasFSABar(*MBB) || MBB->pred_size() == 1)
-        continue;
       BuildMI(*MBB, MBB->begin(), MBB->findDebugLoc(MBB->begin()),
-        TII->get(RISCV::FSA_PRI_SET)).addImm(0);
+        TII->get(RISCV::FSA_PRI_LOWER_N)).addImm(StartPri);
     }
   }
   return MadeChange;
