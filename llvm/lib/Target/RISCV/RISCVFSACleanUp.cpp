@@ -110,22 +110,12 @@ bool RISCVFSACleanUp::runOnMachineFunction(MachineFunction &MF) {
         auto TermIt = MBB.getFirstTerminator();
         int RaiseCnt = MBBRaiseCnt[&MBB];
         int LowerCnt = MBBLowerCnt[&MBB];
-        for(int i = 0; i < RaiseCnt; i++) {
-            BuildMI(MBB, TermIt, MBB.findDebugLoc(TermIt), TII->get(RISCV::FSA_PRI_RAISE));
-            MadeChange = true;
-        }
-
-        for(int i = 0; i < LowerCnt; i++) {
-            BuildMI(MBB, MBB.begin(), MBB.findDebugLoc(MBB.begin()), TII->get(RISCV::FSA_PRI_LOWER));
-            MadeChange = true;
-        }
-        
-    }
-
-    if (FSAPRISETSet.size() == 1) {
-        for (auto *Instr : FSAPRISETSet) {
-            Instr->eraseFromParent();
-        }
+        if (RaiseCnt > 0)
+        BuildMI(MBB, TermIt, MBB.findDebugLoc(TermIt), TII->get(RISCV::FSA_PRI_RAISE_N)).addImm(RaiseCnt);
+        MadeChange = true;
+        if (LowerCnt > 0)
+        BuildMI(MBB, MBB.begin(), MBB.findDebugLoc(MBB.begin()), TII->get(RISCV::FSA_PRI_LOWER_N)).addImm(LowerCnt);
+        MadeChange = true;
     }
   return MadeChange;
 }
