@@ -1271,6 +1271,16 @@ def HasVendorXFormosaBar
       AssemblerPredicate<(all_of FeatureVendorXFormosaBar),
                          "'XFormosaBar' (Formosa Barrier Instructions)">;
 
+def FeatureVendorXFormosa
+    : RISCVExtension<1, 0,
+                     "'XFormosa' (Formosa PRI + BAR)",
+                     [FeatureVendorXFormosaPri, FeatureVendorXFormosaBar]>;
+
+def HasVendorXFormosa
+    : Predicate<"Subtarget->hasVendorXFormosa()">,
+      AssemblerPredicate<(all_of FeatureVendorXFormosa),
+                         "'XFormosa' (Formosa PRI + BAR)">;
+
 // Qualcomm Extension(s)
 
 def FeatureVendorXqcicsr
