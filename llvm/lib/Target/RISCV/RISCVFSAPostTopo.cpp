@@ -8,6 +8,7 @@
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineOperand.h"
 #include "llvm/CodeGen/Passes.h"
+#include "llvm/CodeGen/TargetSchedule.h"
 #include "llvm/IR/DebugLoc.h"
 #include "llvm/InitializePasses.h"
 #include "llvm/ADT/PostOrderIterator.h"
@@ -39,6 +40,8 @@ private:
   // Target Reg info
   const RISCVRegisterInfo *TRI;
   const RISCVInstrInfo *TII;
+  llvm::TargetSchedModel TSchedModel;
+  bool HasInstLatencyInfo;
   MachineLoopInfo *MLI;
   MachineCycleInfo *MCI;
   MachinePostDominatorTree *MPDT;
@@ -51,7 +54,7 @@ public:
   void initialize(MachineFunction &F);
   bool runOnMachineFunction(MachineFunction &MF) override;
   bool hasSelfLoop(const MachineBasicBlock &);
-  bool hasFSABar(MachineBasicBlock &);
+  bool canSkipFSABar(MachineFunction &, MachineBasicBlock &);
   bool canInsertSingleLower(MachineFunction &, MachineBasicBlock &);
   StringRef getPassName() const override {
     return "RISCVFSAPostTopo";
@@ -90,6 +93,9 @@ void RISCVFSAPostTopo::initialize(MachineFunction &MF) {
   MPDT = &getAnalysis<MachinePostDominatorTreeWrapperPass>().getPostDomTree();
   TII = ST.getInstrInfo();
   TRI = ST.getRegisterInfo();
+  const llvm::TargetSubtargetInfo &STI = MF.getSubtarget();
+  TSchedModel.init(&STI);
+  HasInstLatencyInfo = TSchedModel.hasInstrSchedModel();
 }
 
 MachineBasicBlock::iterator RISCVFSAPostTopo::afterNthMI(MachineBasicBlock &MBB, unsigned N) {
@@ -168,15 +174,22 @@ bool RISCVFSAPostTopo::hasSelfLoop(const MachineBasicBlock& MBB) {
   return false;
 }
 
-bool RISCVFSAPostTopo::hasFSABar(MachineBasicBlock& MBB) {
+bool RISCVFSAPostTopo::canSkipFSABar(MachineFunction& MF, MachineBasicBlock& MBB) {
+  // If there has a write before barrier, force reconverge for better colescing opportunity
   bool NoWBeforBar = true;
+  unsigned int CycleCost = canInsertSingleLower(MF, MBB) ? 1 : 2;
+  unsigned int Latency = 0;
   for (auto &MI : MBB) {
     if (MI.mayStore())
       NoWBeforBar = false;
     if (MI.getOpcode() == RISCV::FSA_BAR){
       MBB.splice(MBB.begin(), &MBB, MI.getIterator());
-      return NoWBeforBar;
+      // Insert inst may induce 25% overhead (CycleCost / Latency >= 0.25)
+      bool ShouldSkip = (4 * CycleCost) > Latency;
+      return NoWBeforBar && ShouldSkip;
     }
+    unsigned InstLat = TSchedModel.computeInstrLatency(&MI);
+    Latency += InstLat ? InstLat : 1;
   }
   return false;
 }
@@ -240,10 +253,10 @@ bool RISCVFSAPostTopo::runOnMachineFunction(MachineFunction &MF) {
     // TODO: Still insert lower when such BB has relevant large code body (i.e. inst > 8)
     if(MBB.pred_size() > MBB.succ_size()) {
       if (SkipLoopHeader) {
-        if(!CanSkipLoop && !SkipInsertMBBSet.count(&MBB) && !hasFSABar(MBB))
+        if(!CanSkipLoop && !SkipInsertMBBSet.count(&MBB) && !canSkipFSABar(MF, MBB))
           ReconvBBSet.insert(&MBB);
       } else {
-        if (!hasFSABar(MBB))
+        if (!canSkipFSABar(MF, MBB))
           ReconvBBSet.insert(&MBB);
       }
     }
@@ -261,7 +274,7 @@ bool RISCVFSAPostTopo::runOnMachineFunction(MachineFunction &MF) {
         ExitMBBSet.insert(MBB);
       }
       auto InsertAfter = (FSABBNum == MBB->getNumber() && FSAInstrCnt >= 0) ? FSAInstrCnt : 0;
-      if(ReconvBBSet.count(MBB) && !hasFSABar(*MBB)) {
+      if(ReconvBBSet.count(MBB) && !canSkipFSABar(MF, *MBB)) {
         if (canInsertSingleLower(MF, *MBB)) {
           BuildMI(*MBB, afterNthMI(*MBB, InsertAfter), MBB->findDebugLoc(MBB->begin()),
             TII->get(RISCV::FSA_PRI_LOWER_N)).addImm(1);
