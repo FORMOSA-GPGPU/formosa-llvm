@@ -34,6 +34,7 @@
 #include "llvm/InitializePasses.h"
 #include "llvm/MC/TargetRegistry.h"
 #include "llvm/Passes/PassBuilder.h"
+#include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/RISCVFSAOption.h"
 #include "llvm/Target/TargetOptions.h"
 #include "llvm/Transforms/IPO.h"
@@ -173,6 +174,12 @@ cl::opt<bool> FSASkipMutualLoop(
 cl::opt<bool> FSASkipLoopHeader(
   "fsa-skip-loop-header", cl::Hidden,
   cl::desc("Skip reconv BBs that are belongs to loop header"),
+  cl::init(true)
+);
+
+cl::opt<bool> FSASkipReconvDiverge(
+  "fsa-skip-reconv-diverge", cl::Hidden,
+  cl::desc("Skip reconv BBs that are also divergent BBs"),
   cl::init(true)
 );
 
@@ -750,10 +757,14 @@ void RISCVPassConfig::addPreEmitPass2() {
   }
 
   if (TM->getMCSubtargetInfo()->hasFeature(RISCV::FeatureVendorXFormosaPri)) {
-    if(FSAPriDupCount == 0) {
-      // CleanUpPass will merge duplicated inst into one, cause PriDupCount takes no effect
+    if (FSAFusePriInst) {
       addPass(createRISCVFSACleanUpPass());
-    } else {
+    }
+
+    if(FSAPriDupCount) {
+      // CleanUpPass will merge duplicated inst into one, cause PriDupCount takes no effect
+      if (FSAFusePriInst)
+        llvm::report_fatal_error("-fsa-fuse-pri is conflict with -fsa-pri-dup-count, cannot apply both flags at same time");
       addPass(createRISCVFSAPriDupPass());
     }
     addPass(createRISCVFSAPriQuantPass());

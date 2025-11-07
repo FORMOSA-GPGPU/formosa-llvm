@@ -14,7 +14,6 @@
 #include <queue>
 using namespace llvm;
 #define DEBUG_TYPE "RISCVFSACleanUp"
-extern cl::opt<bool> FSAFusePriInst;
 namespace {
 class RISCVFSACleanUp : public MachineFunctionPass {
 private:
@@ -69,32 +68,24 @@ bool RISCVFSACleanUp::runOnMachineFunction(MachineFunction &MF) {
                          "instructions insertion\n");
     return false;
   }
+
   std::unordered_map<MachineBasicBlock*, int> MBBRaiseCnt;
   std::unordered_map<MachineBasicBlock*, int> MBBLowerCnt;
   std::unordered_set<MachineBasicBlock*> MBBHaveBar;
   std::set<MachineInstr *> FSAPRISETSet;
 
   for (MachineBasicBlock &MBB: MF) {
-    bool MetWrite = false;
     int RaiseCnt = 0;
     int LowerCnt = 0;
         // make_early_inc_range ensures we can safely remove instructions
         // (like with eraseFromParent) without invalidating the iterator.
         for(auto &MI : llvm::make_early_inc_range(MBB)) {
             auto OpC = MI.getOpcode();
-            if (MI.mayStore())
-                MetWrite = true;
-            if (OpC == RISCV::FSA_BAR && !MetWrite) {
-                MBB.splice(MBB.begin(), &MBB, MI);
-            } else if (OpC == RISCV::FSA_PRI_RAISE || OpC == RISCV::FSA_PRI_LOWER) {
-                if(!FSAFusePriInst)
-                    continue;
+            if (OpC == RISCV::FSA_PRI_RAISE || OpC == RISCV::FSA_PRI_LOWER) {
                 if (OpC == RISCV::FSA_PRI_RAISE) {
                     RaiseCnt++;
                     MI.eraseFromParent();
                 } else {
-                    if (!FSAFusePriInst)
-                        break;
                     if (RaiseCnt > 0) {
                         RaiseCnt--;
                     } else {
@@ -108,19 +99,17 @@ bool RISCVFSACleanUp::runOnMachineFunction(MachineFunction &MF) {
         MBBLowerCnt[&MBB] = LowerCnt;
     }
 
-    if(FSAFusePriInst) {
-        for (MachineBasicBlock &MBB : MF) {
-            // auto TermIt = MBB.getFirstTerminator();
-            int RaiseCnt = MBBRaiseCnt[&MBB];
-            int LowerCnt = MBBLowerCnt[&MBB];
-            if (RaiseCnt > 0) {
-                BuildMI(MBB, MBB.begin(), MBB.findDebugLoc(MBB.begin()), TII->get(RISCV::FSA_PRI_RAISE_N)).addImm(RaiseCnt);
-                MadeChange = true;
-            }
-            if (LowerCnt > 0) {
-                BuildMI(MBB, MBB.begin(), MBB.findDebugLoc(MBB.begin()), TII->get(RISCV::FSA_PRI_LOWER_N)).addImm(LowerCnt);
-                MadeChange = true;
-            }
+    for (MachineBasicBlock &MBB : MF) {
+        // auto TermIt = MBB.getFirstTerminator();
+        int RaiseCnt = MBBRaiseCnt[&MBB];
+        int LowerCnt = MBBLowerCnt[&MBB];
+        if (RaiseCnt > 0) {
+            BuildMI(MBB, MBB.begin(), MBB.findDebugLoc(MBB.begin()), TII->get(RISCV::FSA_PRI_RAISE_N)).addImm(RaiseCnt);
+            MadeChange = true;
+        }
+        if (LowerCnt > 0) {
+            BuildMI(MBB, MBB.begin(), MBB.findDebugLoc(MBB.begin()), TII->get(RISCV::FSA_PRI_LOWER_N)).addImm(LowerCnt);
+            MadeChange = true;
         }
     }
   return MadeChange;

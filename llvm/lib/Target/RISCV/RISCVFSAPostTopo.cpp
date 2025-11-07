@@ -183,7 +183,6 @@ bool RISCVFSAPostTopo::canSkipFSABar(MachineFunction& MF, MachineBasicBlock& MBB
     if (MI.mayStore())
       NoWBeforBar = false;
     if (MI.getOpcode() == RISCV::FSA_BAR){
-      MBB.splice(MBB.begin(), &MBB, MI.getIterator());
       // Insert inst may induce 25% overhead (CycleCost / Latency >= 0.25)
       bool ShouldSkip = (4 * CycleCost) > Latency;
       return NoWBeforBar && ShouldSkip;
