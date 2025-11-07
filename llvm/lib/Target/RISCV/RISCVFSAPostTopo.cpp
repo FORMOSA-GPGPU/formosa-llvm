@@ -17,9 +17,7 @@
 #include "llvm/CodeGen/MachineCycleAnalysis.h"
 #include "llvm/CodeGen/MachinePostDominators.h"
 
-#include <cstdint>
 #include <cstdio>
-#include <iostream>
 #include <iterator>
 #include <sys/types.h>
 
@@ -27,7 +25,7 @@
 #include <iterator>
 #include <unordered_map>
 #include <unordered_set>
-#include <queue>
+#include <vector>
 using namespace llvm;
 #define DEBUG_TYPE "RISCVFSAPostTopo"
 extern cl::opt<bool> FSASkipMutualLoop;
@@ -47,6 +45,8 @@ private:
   MachinePostDominatorTree *MPDT;
   MachineBasicBlock::iterator afterNthMI(MachineBasicBlock &MBB, unsigned N);
   MachineBasicBlock::iterator firstPromising(MachineBasicBlock &MBB);
+  unsigned int calcMBBLatency(const MachineBasicBlock &MBB);
+  std::unordered_set<MachineBasicBlock *> needInsertMBBs(MachineFunction &MF, std::unordered_set<MachineBasicBlock*> &ReconvBBSet);
 
 public:
   static char ID;
@@ -200,6 +200,66 @@ bool RISCVFSAPostTopo::canInsertSingleLower(MachineFunction &MF, MachineBasicBlo
   return MBBPostDomEntry && MBBNotInCycle;
 }
 
+// calc cycles needed to run all instructions inside a MBB
+unsigned int RISCVFSAPostTopo::calcMBBLatency(const MachineBasicBlock &MBB) {
+  unsigned int Latency = 0;
+  for (auto &MI : MBB) {
+    unsigned InstLat = TSchedModel.computeInstrLatency(&MI);
+    Latency += InstLat ? InstLat : 1;
+  }
+  return Latency;
+}
+
+std::unordered_set<MachineBasicBlock *> RISCVFSAPostTopo::needInsertMBBs(MachineFunction &MF, std::unordered_set<MachineBasicBlock*> &ReconvBBSet) {
+  std::unordered_map<MachineBasicBlock *, unsigned int> MBBId;
+  std::unordered_map<const MachineBasicBlock *, unsigned int> MBBCost;
+  std::unordered_set<MachineBasicBlock *> NeedInsertMBBSet;
+  std::vector<MachineBasicBlock*> ById(MF.getNumBlockIDs(), nullptr);
+  std::vector<unsigned int> MBBLatency(MF.getNumBlockIDs(), 0);
+  unsigned int Id = 0;
+  for(auto *MBB: ReversePostOrderTraversal<MachineBasicBlock*>(&MF.front())) {
+    MBBId[MBB] = Id;
+    ById[Id] = MBB;
+    MBBLatency[Id] = calcMBBLatency(*MBB);
+    Id++;
+  }
+  for(const auto *MBB: ReconvBBSet) {
+    MBBCost[MBB] = 0;
+  }
+  std::vector<unsigned int> MaxCostFromSrc(Id, 0);
+  for (auto *Src : ReconvBBSet) {
+    std::fill(MaxCostFromSrc.begin(), MaxCostFromSrc.end(), 0);
+    const unsigned SrcId = MBBId[Src];
+    MaxCostFromSrc[SrcId] = MBBLatency[SrcId] + MBBCost[Src];
+
+    for (unsigned Uid = SrcId; Uid < Id; ++Uid) {
+      if (MaxCostFromSrc[Uid] == 0) continue;
+      MachineBasicBlock *U = ById[Uid];
+      if (U != Src && ReconvBBSet.count(U)) continue;
+      for (auto *V : U->successors()) {
+        if(!MBBId.count(V) || MBBId[V] < Uid) continue;
+        unsigned Vid = MBBId[V];
+        unsigned int Cost = MaxCostFromSrc[Uid] + MBBLatency[Vid];
+        if (Cost > MaxCostFromSrc[Vid]) MaxCostFromSrc[Vid] = Cost;
+      }
+    }
+    unsigned int MaxCost = 0;
+    for (auto *Dst : ReconvBBSet) {
+      MaxCost = std::max(MaxCost, MaxCostFromSrc[MBBId[Dst]] + MBBCost[Dst]);
+    }
+    unsigned int CycleCost = canInsertSingleLower(MF, *Src) ? 1 : 2;
+    bool ShouldSkip = (4 * CycleCost) > MaxCost;
+    if (ShouldSkip) {
+      for (auto *Dst : ReconvBBSet) {
+        MBBCost[Dst] += MaxCostFromSrc[MBBId[Dst]];
+      }
+    } else {
+      NeedInsertMBBSet.insert(Src);
+    }
+  }
+  return NeedInsertMBBSet;
+}
+
 bool RISCVFSAPostTopo::runOnMachineFunction(MachineFunction &MF) {
   LLVM_DEBUG(
       dbgs() << "------------------------------------------------------------"
@@ -225,8 +285,8 @@ bool RISCVFSAPostTopo::runOnMachineFunction(MachineFunction &MF) {
   std::unordered_set<MachineBasicBlock *> ReconvBBSet;
   std::unordered_set<MachineBasicBlock *> LoopHeaderBBSet;
   std::unordered_map<MachineBasicBlock *, int> ReconvBBPri;
-  std::unordered_set<MachineBasicBlock *> NeedInsertMBBSet;
   std::unordered_set<MachineBasicBlock *> SkipInsertMBBSet;
+
   bool InsertInExit = true;  
   bool SkipLoopHeader = FSASkipLoopHeader; // Skip insert in loop header and BBs having selfLoop
   bool TailInversion = false; // The raise of last pri pair (lower ... raise) is moved to entryBB if possible
@@ -250,7 +310,7 @@ bool RISCVFSAPostTopo::runOnMachineFunction(MachineFunction &MF) {
     // observing psort found that its not that meaningful to ensure reconv
     // at a reconverge point with following diverge point
     // TODO: Still insert lower when such BB has relevant large code body (i.e. inst > 8)
-    if(MBB.pred_size() > MBB.succ_size()) {
+    if(MBB.pred_size() > 1) {
       if (SkipLoopHeader) {
         if(!CanSkipLoop && !SkipInsertMBBSet.count(&MBB) && !canSkipFSABar(MF, MBB))
           ReconvBBSet.insert(&MBB);
@@ -260,6 +320,9 @@ bool RISCVFSAPostTopo::runOnMachineFunction(MachineFunction &MF) {
       }
     }
   }
+
+  std::unordered_set<MachineBasicBlock *> NeedInsertMBBSet = needInsertMBBs(MF, ReconvBBSet);
+
   int StartPri = 0;
   int GuardPriCnt = 0;
   int SingleLowCnt = 0;
@@ -267,13 +330,13 @@ bool RISCVFSAPostTopo::runOnMachineFunction(MachineFunction &MF) {
   bool InsertInEntry = true;
   InsertInExit = InsertInEntry;
 
-  if(ReconvBBSet.size()) {
+  if(NeedInsertMBBSet.size()) {
     for(auto *MBB: ReversePostOrderTraversal<MachineBasicBlock*>(&MF.front())) {
       if(MBB->succ_empty()) {
         ExitMBBSet.insert(MBB);
       }
       auto InsertAfter = (FSABBNum == MBB->getNumber() && FSAInstrCnt >= 0) ? FSAInstrCnt : 0;
-      if(ReconvBBSet.count(MBB) && !canSkipFSABar(MF, *MBB)) {
+      if(NeedInsertMBBSet.count(MBB) && !canSkipFSABar(MF, *MBB)) {
         if (canInsertSingleLower(MF, *MBB)) {
           BuildMI(*MBB, afterNthMI(*MBB, InsertAfter), MBB->findDebugLoc(MBB->begin()),
             TII->get(RISCV::FSA_PRI_LOWER_N)).addImm(1);
@@ -304,7 +367,7 @@ bool RISCVFSAPostTopo::runOnMachineFunction(MachineFunction &MF) {
   if (InsertInExit && NeedLower > 0) {
     for (MachineBasicBlock *MBB : ExitMBBSet) {
       auto InsertAfter = (FSABBNum == MBB->getNumber() && FSAInstrCnt >= 0) ? FSAInstrCnt : 0;
-      if (ReconvBBSet.count(MBB)) {
+      if (NeedInsertMBBSet.count(MBB)) {
         int RaisedPri = 0;
         int Delta = NeedLower;
         for (auto &MI : llvm::make_early_inc_range(*MBB)) {
