@@ -41,7 +41,7 @@ let Predicates = [HasVendorXFormosaPri, IsRV64],
 class XFormosaPriI<bits<3> funct3, string opcodestr>
     : RVInstI<funct3, OPC_CUSTOM_1, (outs), (ins uimm6:$imm), opcodestr, "$imm">;
 
-def FSA_PRI_RAISE_N : XFormosaPriI <0b010, "fsa.pri.raise.n.t">, Sched<[]>{
+def FSA_PRI_RAISE_N : XFormosaPriI <0b010, "fsa.pri.raise.n">, Sched<[]>{
     bits<6> imm;
     let rs1 = 0;
     let rd = 0;
@@ -49,7 +49,7 @@ def FSA_PRI_RAISE_N : XFormosaPriI <0b010, "fsa.pri.raise.n.t">, Sched<[]>{
     let Inst{25-20} = imm;  // the priority value to raise
 }
 
-def FSA_PRI_LOWER_N : XFormosaPriI <0b011, "fsa.pri.lower.n.t">, Sched<[]>{
+def FSA_PRI_LOWER_N : XFormosaPriI <0b011, "fsa.pri.lower.n">, Sched<[]>{
     bits<6> imm;
     let rs1 = 0;
     let rd = 0;
