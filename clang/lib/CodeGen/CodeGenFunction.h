@@ -2206,7 +2206,7 @@ public:
   bool ChildrenContainStmtClasses(const Stmt *S,
                                   ArrayRef<Stmt::StmtClass> Types);
   int ParentContainStmtClasses(const Stmt *S, ArrayRef<Stmt::StmtClass> Types);
-  void CallRISCVFSAPriIntrinsic(llvm::Intrinsic::ID ID);
+  void CallRISCVFSAPriIntrinsic(llvm::Intrinsic::ID ID, unsigned pri);
 
   //===--------------------------------------------------------------------===//
   //                                  Cleanups
