@@ -15,6 +15,7 @@
 #include "llvm/CodeGen/TargetLowering.h"
 #include "llvm/CodeGen/ValueTypes.h"
 #include "llvm/IR/Instructions.h"
+#include "llvm/IR/IntrinsicsRISCV.h"
 #include "llvm/IR/PatternMatch.h"
 #include <cmath>
 #include <optional>
@@ -36,6 +37,92 @@ static cl::opt<unsigned> SLPMaxVF(
         "Overrides result used for getMaximumVF query which is used "
         "exclusively by SLP vectorizer."),
     cl::Hidden);
+
+bool RISCVTTIImpl::hasBranchDivergence(const Function *F) const { return true; }
+
+bool RISCVTTIImpl::isSourceOfDivergence(const Value *V) const {
+  auto *CB = dyn_cast<CallBase>(V);
+  if (!CB) return false;
+  const Function *Callee = CB->getCalledFunction();
+  if(Callee) {
+    StringRef Name = Callee->getName();
+    if(Name == "_Z13get_global_idj" ||
+      Name == "_Z12get_local_idj") {
+        return true;
+      }
+  }
+
+  // intrinsic call related to formosa
+  if (auto *II = dyn_cast<IntrinsicInst>(CB)) {
+    switch (II->getIntrinsicID()) {
+      case Intrinsic::riscv_fsa_local_id_x:
+      case Intrinsic::riscv_fsa_local_id_y:
+      case Intrinsic::riscv_fsa_local_id_z:
+      case Intrinsic::riscv_fsa_thread_id:
+      case Intrinsic::riscv_fsa_thread_status:
+        return true;
+
+      // case Intrinsic::riscv_fsa_barrier:
+      case Intrinsic::riscv_fsa_global_size_x:
+      case Intrinsic::riscv_fsa_global_size_y:
+      case Intrinsic::riscv_fsa_global_size_z:
+      case Intrinsic::riscv_fsa_global_offset_x:
+      case Intrinsic::riscv_fsa_global_offset_y:
+      case Intrinsic::riscv_fsa_global_offset_z:
+      case Intrinsic::riscv_fsa_group_id_x:
+      case Intrinsic::riscv_fsa_group_id_y:
+      case Intrinsic::riscv_fsa_group_id_z:
+      case Intrinsic::riscv_fsa_local_size_x:
+      case Intrinsic::riscv_fsa_local_size_y:
+      case Intrinsic::riscv_fsa_local_size_z:
+      case Intrinsic::riscv_fsa_xdim:
+      case Intrinsic::riscv_fsa_pri_lower:
+      case Intrinsic::riscv_fsa_pri_lower_n:
+      case Intrinsic::riscv_fsa_pri_raise:
+      case Intrinsic::riscv_fsa_pri_raise_n:
+      case Intrinsic::riscv_fsa_pri_reset:
+      case Intrinsic::riscv_fsa_pri_set:
+        return false;
+
+      default:
+        break;
+    }
+  }
+  return false;
+}
+
+bool RISCVTTIImpl::isAlwaysUniform(const Value *V) const {
+  auto *CB = dyn_cast<CallBase>(V);
+  if (!CB) return false;
+  if (auto *II = dyn_cast<IntrinsicInst>(CB)) {
+    switch (II->getIntrinsicID()) {
+      // case Intrinsic::riscv_fsa_barrier:
+      case Intrinsic::riscv_fsa_global_size_x:
+      case Intrinsic::riscv_fsa_global_size_y:
+      case Intrinsic::riscv_fsa_global_size_z:
+      case Intrinsic::riscv_fsa_global_offset_x:
+      case Intrinsic::riscv_fsa_global_offset_y:
+      case Intrinsic::riscv_fsa_global_offset_z:
+      case Intrinsic::riscv_fsa_group_id_x:
+      case Intrinsic::riscv_fsa_group_id_y:
+      case Intrinsic::riscv_fsa_group_id_z:
+      case Intrinsic::riscv_fsa_local_size_x:
+      case Intrinsic::riscv_fsa_local_size_y:
+      case Intrinsic::riscv_fsa_local_size_z:
+      case Intrinsic::riscv_fsa_xdim:
+      case Intrinsic::riscv_fsa_pri_lower:
+      case Intrinsic::riscv_fsa_pri_lower_n:
+      case Intrinsic::riscv_fsa_pri_raise:
+      case Intrinsic::riscv_fsa_pri_raise_n:
+      case Intrinsic::riscv_fsa_pri_reset:
+      case Intrinsic::riscv_fsa_pri_set:
+        return true;
+      default:
+        break;
+    }
+  }
+  return false;
+}
 
 InstructionCost
 RISCVTTIImpl::getRISCVInstructionCost(ArrayRef<unsigned> OpCodes, MVT VT,

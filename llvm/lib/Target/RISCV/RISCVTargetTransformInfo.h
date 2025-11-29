@@ -59,7 +59,9 @@ public:
   explicit RISCVTTIImpl(const RISCVTargetMachine *TM, const Function &F)
       : BaseT(TM, F.getDataLayout()), ST(TM->getSubtargetImpl(F)),
         TLI(ST->getTargetLowering()) {}
-
+  bool hasBranchDivergence(const Function *F) const;
+  bool isSourceOfDivergence(const Value *V) const;
+  bool isAlwaysUniform(const Value *V) const;
   /// Return the cost of materializing an immediate for a value operand of
   /// a store instruction.
   InstructionCost getStoreImmCost(Type *VecTy, TTI::OperandValueInfo OpInfo,
