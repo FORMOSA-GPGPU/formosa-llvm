@@ -16,6 +16,7 @@
 #include "llvm/CodeGen/MachineLoopInfo.h"
 #include "llvm/CodeGen/MachineCycleAnalysis.h"
 #include "llvm/CodeGen/MachinePostDominators.h"
+#include "RISCVMachineFunctionInfo.h"
 
 #include <cstdio>
 #include <iterator>
@@ -38,6 +39,7 @@ private:
   // Target Reg info
   const RISCVRegisterInfo *TRI;
   const RISCVInstrInfo *TII;
+  const RISCVMachineFunctionInfo* MFI;
   llvm::TargetSchedModel TSchedModel;
   bool HasInstLatencyInfo;
   MachineLoopInfo *MLI;
@@ -80,6 +82,8 @@ INITIALIZE_PASS_BEGIN(RISCVFSAPostTopo, DEBUG_TYPE,
 INITIALIZE_PASS_DEPENDENCY(MachineLoopInfoWrapperPass)
 INITIALIZE_PASS_DEPENDENCY(MachineCycleInfoWrapperPass)
 INITIALIZE_PASS_DEPENDENCY(MachinePostDominatorTreeWrapperPass)
+INITIALIZE_PASS_DEPENDENCY(MachineUniformityAnalysisPass)
+INITIALIZE_PASS_DEPENDENCY(RISCVFSAReconvAnalysis)
 INITIALIZE_PASS_END(RISCVFSAPostTopo, DEBUG_TYPE,
                       "FSA handling reconv priority by inserting fsa.pri "
                       "instructions based on post order dfs, use argument "
@@ -96,6 +100,7 @@ void RISCVFSAPostTopo::initialize(MachineFunction &MF) {
   const llvm::TargetSubtargetInfo &STI = MF.getSubtarget();
   TSchedModel.init(&STI);
   HasInstLatencyInfo = TSchedModel.hasInstrSchedModel();
+  MFI = MF.getInfo<RISCVMachineFunctionInfo>();
 }
 
 MachineBasicBlock::iterator RISCVFSAPostTopo::afterNthMI(MachineBasicBlock &MBB, unsigned N) {
@@ -168,7 +173,7 @@ MachineBasicBlock::iterator RISCVFSAPostTopo::firstPromising(MachineBasicBlock &
 
 bool RISCVFSAPostTopo::hasSelfLoop(const MachineBasicBlock& MBB) {
   for (MachineBasicBlock *SuccMBB : MBB.successors()) {
-    if (SuccMBB == &MBB || (MBB.isPredecessor(SuccMBB) && FSASkipMutualLoop))
+    if (SuccMBB == &MBB)
       return true;
   }
   return false;
@@ -204,10 +209,20 @@ bool RISCVFSAPostTopo::canInsertSingleLower(MachineFunction &MF, MachineBasicBlo
 unsigned int RISCVFSAPostTopo::calcMBBLatency(const MachineBasicBlock &MBB) {
   unsigned int Latency = 0;
   for (auto &MI : MBB) {
+    if (MI.getOpcode() == RISCV::FSA_BAR)
+      break;
     unsigned InstLat = TSchedModel.computeInstrLatency(&MI);
     Latency += InstLat ? InstLat : 1;
   }
   return Latency;
+}
+
+static bool isReconvBB(const MachineBasicBlock &MBB) {
+  for(auto &MI : MBB) {
+    if(MI.getOpcode() == RISCV::FSA_RECONV_MARKER)
+      return true;
+  }
+  return false;
 }
 
 std::unordered_set<MachineBasicBlock *> RISCVFSAPostTopo::needInsertMBBs(MachineFunction &MF, std::unordered_set<MachineBasicBlock*> &ReconvBBSet) {
@@ -220,6 +235,8 @@ std::unordered_set<MachineBasicBlock *> RISCVFSAPostTopo::needInsertMBBs(Machine
   for(auto *MBB: ReversePostOrderTraversal<MachineBasicBlock*>(&MF.front())) {
     MBBId[MBB] = Id;
     ById[Id] = MBB;
+    // TODO: Cost should be measured as MBBLatency to nearest barrier
+    // We should only calc latency until FSA_BAR
     MBBLatency[Id] = calcMBBLatency(*MBB);
     Id++;
   }
@@ -248,7 +265,15 @@ std::unordered_set<MachineBasicBlock *> RISCVFSAPostTopo::needInsertMBBs(Machine
       MaxCost = std::max(MaxCost, MaxCostFromSrc[MBBId[Dst]] + MBBCost[Dst]);
     }
     unsigned int CycleCost = canInsertSingleLower(MF, *Src) ? 1 : 2;
-    bool ShouldSkip = (4 * CycleCost) > MaxCost;
+    int PredFactor = Src->pred_size();
+    if (PredFactor == 1) // MutualLoopEnd
+      PredFactor += 1;
+    int InsertCost = CycleCost;
+    int SkipCost = MaxCost * (PredFactor - 1);
+    // old - new / old > 1 / 4, skip
+    // llvm::dbgs() << "MBB" << Src->getNumber() << "\n";
+    // llvm::dbgs() << "InsertCost: " << InsertCost << ", SkipCost: " << SkipCost << ", MaxCost: " << MaxCost << "\n";
+    bool ShouldSkip = (8 * InsertCost / SkipCost) > 1;
     if (ShouldSkip) {
       for (auto *Dst : ReconvBBSet) {
         MBBCost[Dst] += MaxCostFromSrc[MBBId[Dst]];
@@ -287,8 +312,9 @@ bool RISCVFSAPostTopo::runOnMachineFunction(MachineFunction &MF) {
   std::unordered_map<MachineBasicBlock *, int> ReconvBBPri;
   std::unordered_set<MachineBasicBlock *> SkipInsertMBBSet;
 
-  bool InsertInExit = true;  
-  bool SkipLoopHeader = FSASkipLoopHeader; // Skip insert in loop header and BBs having selfLoop
+  bool InsertInExit = true;
+  bool SkipLoopHeader = FSASkipLoopHeader; // Skip insert in loop header
+  bool SkipSelfLoop = true;
   bool TailInversion = false; // The raise of last pri pair (lower ... raise) is moved to entryBB if possible
   MachineBasicBlock *LastInsertBB;
   if(SkipLoopHeader) {
@@ -304,27 +330,51 @@ bool RISCVFSAPostTopo::runOnMachineFunction(MachineFunction &MF) {
       }
     }
   }
+  // unsigned K = MF.getFunction().getContext().getMDKindID("reconv.candidate");
+  // for (auto &MBB : MF) {
+  //   const BasicBlock *IRBB = MBB.getBasicBlock();
+  //   if(!IRBB) continue;
+  //   const Instruction *Term = IRBB->getTerminator();
+  //   if(Term && Term->getMetadata(K) && MBB.pred_size() > 1) {
+  //     llvm::dbgs() << "MBB" << MBB.getNumber() << " is reconv BB\n";
+  //     ReconvBBSet.insert(&MBB);
+  //   }
+  // }
 
   for(MachineBasicBlock &MBB: MF) {
-    bool CanSkipLoop = hasSelfLoop(MBB) && (MBB.pred_size() < 3);
-    // observing psort found that its not that meaningful to ensure reconv
-    // at a reconverge point with following diverge point
-    // TODO: Still insert lower when such BB has relevant large code body (i.e. inst > 8)
-    if(MBB.pred_size() > 1) {
-      if (SkipLoopHeader) {
-        if(!CanSkipLoop && !SkipInsertMBBSet.count(&MBB) && !canSkipFSABar(MF, MBB))
-          ReconvBBSet.insert(&MBB);
-      } else {
-        if (!canSkipFSABar(MF, MBB))
-          ReconvBBSet.insert(&MBB);
-      }
+    if(MBB.pred_size() > 1 && isReconvBB(MBB) && calcMBBLatency(MBB) > 2 /* && !MBB.succ_empty() */) {
+      MadeChange = true;
+      ReconvBBSet.insert(&MBB);
     }
   }
+  // for(MachineBasicBlock &MBB: MF) {
+  //   if (!FSASkipMutualLoop && hasSelfLoop(MBB)) {
+  //     for (auto *Succ : MBB.successors()) {
+  //       if(Succ != &MBB)
+  //         ReconvBBSet.insert(Succ);
+  //     }
+  //   }
 
-  std::unordered_set<MachineBasicBlock *> NeedInsertMBBSet = needInsertMBBs(MF, ReconvBBSet);
+  //   bool CanSkipLoop = SkipSelfLoop && hasSelfLoop(MBB) && (MBB.pred_size() < 3);
+  //   // observing psort found that its not that meaningful to ensure reconv
+  //   // at a reconverge point with following diverge point
+  //   // TODO: Still insert lower when such BB has relevant large code body (i.e. inst > 8)
+  //   if(MBB.pred_size() > 1) {
+  //     if (SkipLoopHeader) {
+  //       if(!CanSkipLoop && !SkipInsertMBBSet.count(&MBB)  && !canSkipFSABar(MF, MBB))
+  //         ReconvBBSet.insert(&MBB);
+  //     } else {
+  //       // if (!canSkipFSABar(MF, MBB))
+  //       ReconvBBSet.insert(&MBB);
+  //     }
+  //   }
+  // }
+
+  // std::unordered_set<MachineBasicBlock *> NeedInsertMBBSet = needInsertMBBs(MF, ReconvBBSet);
+  std::unordered_set<MachineBasicBlock *> NeedInsertMBBSet = ReconvBBSet;
 
   int StartPri = 0;
-  int GuardPriCnt = 0;
+  int GuardPriCnt = 1;
   int SingleLowCnt = 0;
 
   bool InsertInEntry = true;
@@ -334,6 +384,7 @@ bool RISCVFSAPostTopo::runOnMachineFunction(MachineFunction &MF) {
     for(auto *MBB: ReversePostOrderTraversal<MachineBasicBlock*>(&MF.front())) {
       if(MBB->succ_empty()) {
         ExitMBBSet.insert(MBB);
+        continue;
       }
       auto InsertAfter = (FSABBNum == MBB->getNumber() && FSAInstrCnt >= 0) ? FSAInstrCnt : 0;
       if(NeedInsertMBBSet.count(MBB) && !canSkipFSABar(MF, *MBB)) {
@@ -343,13 +394,13 @@ bool RISCVFSAPostTopo::runOnMachineFunction(MachineFunction &MF) {
           SingleLowCnt++;
           LastInsertBB = MBB;
         } else {
-          GuardPriCnt++;
           auto TermIt = MBB->getFirstInstrTerminator();
           BuildMI(*MBB, afterNthMI(*MBB, InsertAfter), MBB->findDebugLoc(MBB->begin()),
-            TII->get(RISCV::FSA_PRI_LOWER_N)).addImm(GuardPriCnt);
+          TII->get(RISCV::FSA_PRI_LOWER_N)).addImm(GuardPriCnt);
           BuildMI(*MBB, TermIt, MBB->findDebugLoc(TermIt),
-            TII->get(RISCV::FSA_PRI_RAISE_N)).addImm(GuardPriCnt);
+          TII->get(RISCV::FSA_PRI_RAISE_N)).addImm(GuardPriCnt);
           LastInsertBB = nullptr;
+          GuardPriCnt++;
         }
         MadeChange = true;
       }
@@ -357,46 +408,49 @@ bool RISCVFSAPostTopo::runOnMachineFunction(MachineFunction &MF) {
   }
   StartPri = GuardPriCnt + SingleLowCnt;
   MachineBasicBlock &EntryMBB = *MF.begin();
-  if (InsertInEntry && StartPri > 0) {
+  if (InsertInEntry && MadeChange) {
     MadeChange = true;
     auto EntryTermIt = EntryMBB.getFirstTerminator();
     BuildMI(EntryMBB, EntryTermIt, EntryMBB.findDebugLoc(EntryTermIt),
       TII->get(RISCV::FSA_PRI_RAISE_N)).addImm(StartPri);
   }
   int NeedLower = GuardPriCnt;
+  // llvm::dbgs() << "NeedLower = " << NeedLower << "\n";
   if (InsertInExit && NeedLower > 0) {
     for (MachineBasicBlock *MBB : ExitMBBSet) {
       auto InsertAfter = (FSABBNum == MBB->getNumber() && FSAInstrCnt >= 0) ? FSAInstrCnt : 0;
-      if (NeedInsertMBBSet.count(MBB)) {
-        int RaisedPri = 0;
-        int Delta = NeedLower;
-        for (auto &MI : llvm::make_early_inc_range(*MBB)) {
-          auto OpCode = MI.getOpcode();
-          if (OpCode == RISCV::FSA_PRI_RAISE_N) {
-            RaisedPri = MI.getOperand(0).getImm();
-            Delta = NeedLower - RaisedPri;
-            // We simply remove the last pri raise inst since RaisedPri <= StartPri always hold
-            MI.eraseFromParent();
-          }
-        }
-        if (Delta != 0) { // We need to add delta to existed PriLower
-          for (auto &MI : *MBB) {
-            auto OpCode = MI.getOpcode();
-            if (OpCode == RISCV::FSA_PRI_LOWER_N) {
-              int LoweredPri = MI.getOperand(0).getImm();
-              MI.getOperand(0).setImm(LoweredPri + Delta);
-              Delta = 0;
-            }
-          }
-          if (Delta != 0) {
-            BuildMI(*MBB, afterNthMI(*MBB, InsertAfter), MBB->findDebugLoc(MBB->begin()),
-              TII->get(RISCV::FSA_PRI_LOWER_N)).addImm(Delta);
-          }
-        }
-      } else {
-        BuildMI(*MBB, afterNthMI(*MBB, InsertAfter), MBB->findDebugLoc(MBB->begin()),
-          TII->get(RISCV::FSA_PRI_LOWER_N)).addImm(NeedLower);
-      }
+      // if (NeedInsertMBBSet.count(MBB)) {
+      //   int RaisedPri = 0;
+      //   int Delta = NeedLower;
+      //   for (auto &MI : llvm::make_early_inc_range(*MBB)) {
+      //     auto OpCode = MI.getOpcode();
+      //     if (OpCode == RISCV::FSA_PRI_RAISE_N) {
+      //       RaisedPri = MI.getOperand(0).getImm();
+      //       Delta = NeedLower - RaisedPri;
+      //       // We simply remove the last pri raise inst since RaisedPri <= StartPri always hold
+      //       MI.eraseFromParent();
+      //     }
+      //   }
+      //   if (Delta != 0) { // We need to add delta to existed PriLower
+      //     for (auto &MI : *MBB) {
+      //       auto OpCode = MI.getOpcode();
+      //       if (OpCode == RISCV::FSA_PRI_LOWER_N) {
+      //         int LoweredPri = MI.getOperand(0).getImm();
+      //         MI.getOperand(0).setImm(LoweredPri + Delta);
+      //         Delta = 0;
+      //       }
+      //     }
+      //     if (Delta != 0) {
+      //       BuildMI(*MBB, afterNthMI(*MBB, InsertAfter), MBB->findDebugLoc(MBB->begin()),
+      //         TII->get(RISCV::FSA_PRI_LOWER_N)).addImm(Delta);
+      //     }
+      //   }
+      // } else {
+      //   BuildMI(*MBB, afterNthMI(*MBB, InsertAfter), MBB->findDebugLoc(MBB->begin()),
+      //     TII->get(RISCV::FSA_PRI_LOWER_N)).addImm(NeedLower);
+      // }
+      BuildMI(*MBB, afterNthMI(*MBB, InsertAfter), MBB->findDebugLoc(MBB->begin()),
+        TII->get(RISCV::FSA_PRI_LOWER_N)).addImm(NeedLower);
       MadeChange = true;
     }
   }
