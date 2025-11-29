@@ -1,28 +1,25 @@
-// Formosa gpgpu banked register layout
-
 def FormosaModel : SchedMachineModel {
     // CompleteModel = 1 means the model in this file is completely well-defined and ask llvm
     // Do not use any other possible model assumption when scheduling
     let CompleteModel = 0;  // Whether all instructions is well-defined in this model
 
     let IssueWidth = 1;
-    
+
     // Need to check following:
     // MicroOpBufferSize = 1 means that instructions will always be added
     // the ready queue when they become available.  This exposes them
     // to the register pressure analysis.
 
-    
-    let MicroOpBufferSize = 2; // Max micro-ops that can be buffered, 
-                               // should be determine by min(reservation stations, #of physical reg for renaming, ROB size)
-    
-    let LoadLatency = 4; // Refer to HitLantency
+    // let FullInstRWOverlapCheck = 1;
+    let EnableIntervals = 1;
+    let MicroOpBufferSize = 1;
+    // let LoopMicroOpBufferSize = -1;
 
     // profile if this is needed
     let PostRAScheduler = 1;
 
     // TODO: profile for best penalty value
-    int MispredictPenalty = 20;
+    int MispredictPenalty = 40; // We won't predict, we stall until cond resolved instead
 
     let UnsupportedFeatures = [HasStdExtZbkb, HasStdExtZbkc, HasStdExtZbkx,
                                 HasStdExtZcmt, HasStdExtZknd, HasStdExtZkne,
@@ -32,18 +29,18 @@ def FormosaModel : SchedMachineModel {
 
 // BufferSize : refer to kInstrQueue
 let BufferSize = 2 in {
-    def FormosaUnitIALU       : ProcResource<32>; // Int ALU(w/o Mult and Div)
-    def FormosaUnitIMul       : ProcResource<32>; // Int Mult Unit
-    def FormosaUnitIDIV       : ProcResource<32>; // Int Div Unit
-    def FormosaUnitFPALU      : ProcResource<32>; // FP ALU, currently not modeling in simtix
-    def FormosaUnitFPDivSqrt  : ProcResource<32>; // FP DivSqrt Unit, currently not modeling in simtix
-    def FormosaMisc           : ProcResource<32>;
+    def FormosaUnitIALU       : ProcResource<1>; // Int ALU(w/o Mult and Div)
+    def FormosaUnitIMul       : ProcResource<1>; // Int Mult Unit
+    def FormosaUnitIDIV       : ProcResource<1>; // Int Div Unit
+    def FormosaUnitFPALU      : ProcResource<1>; // FP ALU, currently not modeling in simtix
+    def FormosaUnitFPDivSqrt  : ProcResource<1>; // FP DivSqrt Unit, currently not modeling in simtix
+    def FormosaMisc           : ProcResource<1>;
     // def FormosaUnitB          : ProcResource<1>; // Branch, currently unused
 }
 
 // possible more BufferSize ?
 let BufferSize = 8 in {
-    def FormosaUnitMem        : ProcResource<32>; // Load/Store
+    def FormosaUnitMem        : ProcResource<1>; // Load/Store
 }
 
 //===----------------------------------------------------------------------===//
@@ -257,8 +254,8 @@ defm : UnsupportedSchedZbs;
 defm : UnsupportedSchedZbkb;
 defm : UnsupportedSchedZbkx;
 defm : UnsupportedSchedZfa;
-defm : UnsupportedSchedZfh;
+defm : UnsupportedSchedZfhmin;
 defm : UnsupportedSchedSFB;
-defm : UnsupportedSchedXsfvcp;
 defm : UnsupportedSchedZvk;
+defm : UnsupportedSchedXsfvcp;
 }
