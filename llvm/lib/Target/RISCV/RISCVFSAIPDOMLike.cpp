@@ -126,6 +126,7 @@ bool RISCVFSAIPDOMLike::runOnMachineFunction(MachineFunction &MF) {
     MaxPriPairCnt = std::max(MaxPriPairCnt, PriPairCnt);
   }
   if (MadeChange) {
+    MaxPriPairCnt++;
     MachineBasicBlock &EntryMBB = *MF.begin();
     auto EntryTermIt = EntryMBB.getFirstTerminator();
     // At begining, raise every thread's pri
