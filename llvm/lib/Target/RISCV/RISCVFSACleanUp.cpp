@@ -1,3 +1,4 @@
+#include "MCTargetDesc/RISCVMCTargetDesc.h"
 #include "RISCVInstrInfo.h"
 #include "RISCVRegisterInfo.h"
 #include "RISCVSubtarget.h"
@@ -81,6 +82,8 @@ bool RISCVFSACleanUp::runOnMachineFunction(MachineFunction &MF) {
         // (like with eraseFromParent) without invalidating the iterator.
         for(auto &MI : llvm::make_early_inc_range(MBB)) {
             auto OpC = MI.getOpcode();
+            if (OpC == RISCV::FSA_RECONV_MARKER)
+                MI.eraseFromParent();
             if (OpC == RISCV::FSA_PRI_RAISE || OpC == RISCV::FSA_PRI_LOWER) {
                 if (OpC == RISCV::FSA_PRI_RAISE) {
                     RaiseCnt++;

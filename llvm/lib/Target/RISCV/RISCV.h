@@ -111,6 +111,9 @@ void initializeRISCVVLOptimizerPass(PassRegistry &);
 FunctionPass *createRISCVFSADivergenceAnalysisPass();
 void initializeRISCVFSADivergenceAnalysisPass(PassRegistry &);
 
+FunctionPass *createRISCVFSAReconvAnalysisPass();
+void initializeRISCVFSAReconvAnalysisPass(PassRegistry &);
+
 FunctionPass *createRISCVFSAInsertFunctPriPass();
 void initializeRISCVFSAInsertFunctPriPass(PassRegistry &);
 

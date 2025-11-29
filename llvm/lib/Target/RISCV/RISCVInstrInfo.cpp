@@ -4344,5 +4344,29 @@ RISCVInstrInfo::getInstructionUniformity(const MachineInstr &MI) const {
     }
   }
 
+  if (MI.isCall()) {
+    const MachineOperand &CalleeOp = MI.getOperand(MI.getNumExplicitOperands() - 1);
+    StringRef Name;
+    if (CalleeOp.isGlobal()) {
+      if (const Function *Callee = dyn_cast<Function>(CalleeOp.getGlobal()))
+        Name = Callee->getName();
+    } else if (CalleeOp.isSymbol()) {
+      Name = CalleeOp.getSymbolName();
+    }
+
+    if (!Name.empty()) {
+      if (Name == "_Z13get_global_idj" ||
+          Name == "_Z12get_local_idj") {
+        return InstructionUniformity::NeverUniform;
+      }
+      if (Name == "_Z15get_global_sizej" ||
+          Name == "_Z15get_local_sizej"  ||
+          Name == "_Z12get_group_idj"    ||
+          Name == "_Z15get_num_groupsj") {
+        return InstructionUniformity::AlwaysUniform;
+      }
+    }
+  }
+
   return InstructionUniformity::Default;
 }

@@ -799,6 +799,7 @@ void RISCVPassConfig::addPreRegAlloc() {
 
   if (TM->getOptLevel() != CodeGenOptLevel::None && EnableMachinePipeliner)
     addPass(&MachinePipelinerID);
+  addPass(createRISCVFSAReconvAnalysisPass());
 }
 
 void RISCVPassConfig::addFastRegAlloc() {

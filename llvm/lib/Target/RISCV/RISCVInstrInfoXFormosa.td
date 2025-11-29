@@ -41,7 +41,7 @@ let Predicates = [HasVendorXFormosaPri, IsRV64],
 class XFormosaPriI<bits<3> funct3, string opcodestr>
     : RVInstI<funct3, OPC_CUSTOM_1, (outs), (ins uimm6:$imm), opcodestr, "$imm">;
 
-def FSA_PRI_RAISE_N : XFormosaPriI <0b101, "fsa.pri.raise.n.t">, Sched<[]>{
+def FSA_PRI_RAISE_N : XFormosaPriI <0b101, "fsa.pri.raise.n">, Sched<[]>{
     bits<6> imm;
     let rs1 = 0;
     let rd = 0;
@@ -49,7 +49,7 @@ def FSA_PRI_RAISE_N : XFormosaPriI <0b101, "fsa.pri.raise.n.t">, Sched<[]>{
     let Inst{25-20} = imm;  // the priority value to raise
 }
 
-def FSA_PRI_LOWER_N : XFormosaPriI <0b011, "fsa.pri.lower.n.t">, Sched<[]>{
+def FSA_PRI_LOWER_N : XFormosaPriI <0b011, "fsa.pri.lower.n">, Sched<[]>{
     bits<6> imm;
     let rs1 = 0;
     let rd = 0;
@@ -78,6 +78,15 @@ def FSA_BAR : XFormosaBar<0b001, "fsa.bar"> , Sched<[]>{
     let rd = 0;
     let Inst{31-26} = bid;
     let Inst{25-20} = wc;
+}
+
+def FSA_RECONV_MARKER  : Pseudo<(outs), (ins), []> {
+    let isPseudo = 1;
+    let mayLoad = 0;
+    let mayStore = 0;
+    let Size = 0;
+    let hasSideEffects = 1;
+    let isCodeGenOnly = 1;
 }
 
 // Pattern matching for FSA instructions

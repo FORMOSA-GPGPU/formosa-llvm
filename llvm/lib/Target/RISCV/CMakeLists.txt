@@ -73,6 +73,7 @@ add_llvm_target(RISCVCodeGen
   RISCVVLOptimizer.cpp
   RISCVZacasABIFix.cpp
   RISCVFSADivergenceAnalysis.cpp
+  RISCVFSAReconvAnalysis.cpp
   RISCVFSAInsertFunctPri.cpp
   RISCVFSARemoveRedundantPri.cpp
   RISCVFSAInsertMinPCPri.cpp
