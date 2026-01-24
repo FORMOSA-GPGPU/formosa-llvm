@@ -80,6 +80,29 @@ def FSA_BAR : XFormosaBar<0b001, "fsa.bar"> , Sched<[]>{
     let Inst{25-20} = wc;
 }
 
+// GFX
+let Predicates = [HasVendorXFormosaGFX, HasStdExtZdinx, IsRV64] in {
+  def FSA_ROP : RVInstR4<0b00, 0b000, OPC_CUSTOM_0,
+                         (outs),
+                         (ins GPR:$rs1, GPR:$rs2, GPR:$rs3),
+                         "fsa.rop",
+                         "$rs1, $rs2, $rs3"> {
+    let rd = 0;
+    let hasSideEffects = 1;
+    let mayStore = 1;
+    let mayLoad = 0;
+  }
+
+  def FSA_TEX : RVInstR4<0b00, 0b001, OPC_CUSTOM_0, (outs GPR:$rd),
+                         (ins GPR:$rs1, GPR:$rs2, GPR:$rs3),
+                         "fsa.tex",
+                         "$rd, $rs1, $rs2, $rs3"> {
+    let hasSideEffects = 1;
+    let mayStore = 0;
+    let mayLoad = 1;
+  }
+}
+
 // Pattern matching for FSA instructions
 
 class PatUImm6UImm6<Intrinsic intrinsic, RVInstI inst>
@@ -121,3 +144,9 @@ def : Pat<(i64 (int_riscv_fsa_group_id_z)),      (CSRRS FSA_XCLWZ.Encoding,    (
 def : Pat<(i64 (int_riscv_fsa_thread_id)),       (CSRRS FSA_XTID.Encoding,     (XLenVT X0))>;
 def : Pat<(i64 (int_riscv_fsa_thread_status)),   (CSRRS FSA_XTSTATUS.Encoding, (XLenVT X0))>;
 def : Pat<(i64 (int_riscv_fsa_xdim)),            (CSRRS FSA_XDIM.Encoding,     (XLenVT X0))>;
+
+// GFX
+def : Pat<(int_riscv_fsa_rop GPR:$rs1, GPR:$rs2, GPR:$rs3),
+          (FSA_ROP GPR:$rs1, GPR:$rs2, GPR:$rs3)>;
+def : Pat<(int_riscv_fsa_tex GPR:$rs1, GPR:$rs2, GPR:$rs3),
+          (FSA_TEX GPR:$rs1, GPR:$rs2, GPR:$rs3)>;
