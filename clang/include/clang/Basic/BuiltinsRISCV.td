@@ -177,6 +177,14 @@ def fsa_barrier : RISCVBuiltin<"void(uint64_t, uint64_t)">;
 } // Attributes = [Const, NoThrow]
 
 //===----------------------------------------------------------------------===//
+// XformosaGFX extension.
+//===----------------------------------------------------------------------===//
+let Features = "xformosagfx,64bit" in {
+def fsa_rop : RISCVBuiltin<"void(uint32_t, uint32_t, uint32_t)">;
+def fsa_tex : RISCVBuiltin<"uint32_t(uint32_t, uint32_t, uint32_t)">;
+}
+
+//===----------------------------------------------------------------------===//
 // Zihintntl extension.
 //===----------------------------------------------------------------------===//
 let Features = "zihintntl", Attributes = [CustomTypeChecking] in {

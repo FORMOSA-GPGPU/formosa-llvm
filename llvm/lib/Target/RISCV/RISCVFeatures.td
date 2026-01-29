@@ -1271,10 +1271,20 @@ def HasVendorXFormosaBar
       AssemblerPredicate<(all_of FeatureVendorXFormosaBar),
                          "'XFormosaBar' (Formosa Barrier Instructions)">;
 
+def FeatureVendorXFormosaGFX
+    : RISCVExtension<1, 0, "'XFormosaGFX' (Formosa Graphics)">;
+def HasVendorXFormosaGFX
+    : Predicate<"Subtarget->hasVendorXFormosaGFX()">,
+      AssemblerPredicate<(all_of FeatureVendorXFormosaGFX),
+                        "'XFormosaGFX' (Formosa Graphics)">;
+
 def FeatureVendorXFormosa
     : RISCVExtension<1, 0,
                      "'XFormosa' (Formosa PRI + BAR)",
-                     [FeatureVendorXFormosaPri, FeatureVendorXFormosaBar]>;
+                     [
+                        FeatureVendorXFormosaPri,
+                        FeatureVendorXFormosaBar,
+                        FeatureVendorXFormosaGFX]>;
 
 def HasVendorXFormosa
     : Predicate<"Subtarget->hasVendorXFormosa()">,
