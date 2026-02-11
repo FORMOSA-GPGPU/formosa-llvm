@@ -80,6 +80,14 @@ def FSA_BAR : XFormosaBar<0b001, "fsa.bar"> , Sched<[]>{
     let Inst{25-20} = wc;
 }
 
+def uimm3_timm : PatLeaf<(timm), [{
+  return isUInt<3>(N->getZExtValue());
+}]>;
+
+def as_uimm3 : SDNodeXForm<timm, [{
+  return CurDAG->getTargetConstant(N->getZExtValue(), SDLoc(N), Subtarget->getXLenVT());
+}]>;
+
 // GFX
 let Predicates = [HasVendorXFormosaGFX, HasStdExtZdinx, IsRV64] in {
   def FSA_ROP : RVInstR4<0b00, 0b000, OPC_CUSTOM_0,
@@ -93,10 +101,12 @@ let Predicates = [HasVendorXFormosaGFX, HasStdExtZdinx, IsRV64] in {
     let mayLoad = 0;
   }
 
-  def FSA_TEX : RVInstR4<0b00, 0b001, OPC_CUSTOM_0, (outs GPR:$rd),
-                         (ins GPR:$rs1, GPR:$rs2, GPR:$rs3),
+  def FSA_TEX : RVInstR4<0b01, 0b000, OPC_CUSTOM_0, (outs GPR:$rd),
+                         (ins GPR:$rs1, GPR:$rs2, GPR:$rs3, uimm3:$tex),
                          "fsa.tex",
-                         "$rd, $rs1, $rs2, $rs3"> {
+                         "$rd, $rs1, $rs2, $rs3, $tex"> {
+    bits<3> tex;
+    let Inst{14-12} = tex;
     let hasSideEffects = 1;
     let mayStore = 0;
     let mayLoad = 1;
@@ -148,5 +158,5 @@ def : Pat<(i64 (int_riscv_fsa_xdim)),            (CSRRS FSA_XDIM.Encoding,     (
 // GFX
 def : Pat<(int_riscv_fsa_rop GPR:$rs1, GPR:$rs2, GPR:$rs3),
           (FSA_ROP GPR:$rs1, GPR:$rs2, GPR:$rs3)>;
-def : Pat<(int_riscv_fsa_tex GPR:$rs1, GPR:$rs2, GPR:$rs3),
-          (FSA_TEX GPR:$rs1, GPR:$rs2, GPR:$rs3)>;
+def : Pat<(int_riscv_fsa_tex GPR:$rs1, GPR:$rs2, GPR:$rs3, uimm3_timm:$tex),
+          (FSA_TEX GPR:$rs1, GPR:$rs2, GPR:$rs3, (as_uimm3 $tex))>;
