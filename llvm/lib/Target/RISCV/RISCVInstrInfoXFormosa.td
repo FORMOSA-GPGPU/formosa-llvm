@@ -111,6 +111,16 @@ let Predicates = [HasVendorXFormosaGFX, HasStdExtZdinx, IsRV64] in {
     let mayStore = 0;
     let mayLoad = 1;
   }
+
+  def FSA_SWAP : RVInstR4<0b10, 0b000, OPC_CUSTOM_0, (outs GPR:$rd),
+                            (ins GPR:$rs1, GPR:$rs2),
+                            "fsa.swap",
+                            "$rd, $rs1, $rs2"> {
+    let rs3 = 0;
+    let hasSideEffects = 0;
+    let mayLoad = 0;
+    let mayStore = 0;
+  }
 }
 
 // Pattern matching for FSA instructions
@@ -160,3 +170,5 @@ def : Pat<(int_riscv_fsa_rop GPR:$rs1, GPR:$rs2, GPR:$rs3),
           (FSA_ROP GPR:$rs1, GPR:$rs2, GPR:$rs3)>;
 def : Pat<(int_riscv_fsa_tex GPR:$rs1, GPR:$rs2, GPR:$rs3, uimm3_timm:$tex),
           (FSA_TEX GPR:$rs1, GPR:$rs2, GPR:$rs3, (as_uimm3 $tex))>;
+def : Pat<(int_riscv_fsa_swap GPR:$rs1, GPR:$rs2),
+          (FSA_SWAP GPR:$rs1, GPR:$rs2)>;

@@ -80,4 +80,7 @@ let TargetPrefix = "riscv" in {
   def int_riscv_fsa_tex : ClangBuiltin<"__builtin_riscv_fsa_tex">,
     Intrinsic<[llvm_i64_ty], [llvm_i64_ty, llvm_i64_ty, llvm_i64_ty, llvm_i32_ty],
       [IntrHasSideEffects, IntrWillReturn, IntrNoCallback, IntrReadMem, ImmArg<ArgIndex<3>>]>;
+  def int_riscv_fsa_swap : ClangBuiltin<"__builtin_riscv_fsa_swap">,
+    Intrinsic<[llvm_i64_ty], [llvm_i64_ty, llvm_i64_ty],
+      [IntrWillReturn, IntrNoMem, IntrSpeculatable, IntrNoCallback]>;
 } // TargetPrefix = "riscv"
