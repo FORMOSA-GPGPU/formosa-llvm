@@ -181,7 +181,8 @@ def fsa_barrier : RISCVBuiltin<"void(uint64_t, uint64_t)">;
 //===----------------------------------------------------------------------===//
 let Features = "xformosagfx,64bit" in {
 def fsa_rop : RISCVBuiltin<"void(uint32_t, uint32_t, uint32_t)">;
-def fsa_tex : RISCVBuiltin<"uint32_t(uint32_t, uint32_t, uint32_t)">;
+def fsa_tex : RISCVBuiltin<"uint32_t(uint32_t, uint32_t, uint32_t, uint32_t)">;
+def fsa_swap : RISCVBuiltin<"uint64_t(uint32_t, uint32_t)">;
 }
 
 //===----------------------------------------------------------------------===//

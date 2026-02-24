@@ -487,10 +487,12 @@ def  FSA_XKERNELPC    : SysReg<"xkernelpc", 0xFE5>;
 def  FSA_XKERNELARG   : SysReg<"xkernelarg", 0xFE7>;
 
 // Formosa per-warp CSRs
-def  FSA_XWID         : SysReg<"xwid", 0xFD0>;
+// def  FSA_XWID         : SysReg<"xwid", 0xFD0>;
 def  FSA_XNT          : SysReg<"xnt", 0xFD1>;
 
 // Formosa per-thread CSRs
 def  FSA_XTID         : SysReg<"xtid", 0xFE0>;
 def  FSA_XTSTATUS     : SysReg<"xtstatus", 0xFE1>;
 defm FSA_XCLL         : RISCVFSACSR<"xcll", 0xFE2>;
+
+def FSA_XLANEID       : SysReg<"xlaneid", 0xFD0>;
