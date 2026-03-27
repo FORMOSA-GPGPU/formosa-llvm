@@ -465,9 +465,32 @@ def : SysReg<"sctrdepth", 0x15f>;
 def : SysReg<"vsctrctl", 0x24e>;
 def : SysReg<"mctrctl", 0x34e>;
 
+//===----------------------------------------------------------------------===//
+// Formosa Custom CSRs (Read-Only)
+//===----------------------------------------------------------------------===//
+
 //===-----------------------------------------------
-// Formosa CSRs
+// Per-warp CSRs
 //===-----------------------------------------------
 
-// Formosa per-thread CSRs (read-only)
-def FSA_XLANEID       : SysReg<"xlaneid", 0xFD0>;
+// Identifies the current execution warp inside the core.
+def FSA_XWID      : SysReg<"xwid", 0xFC0>;
+
+// Warp execution width.
+// Indicates how many activated lanes (threads) are in the warp.
+def FSA_XWLEN     : SysReg<"xwlen", 0xFC1>;
+
+//===-----------------------------------------------
+// Per-thread CSRs
+//===-----------------------------------------------
+
+// Lane ID (local thread ID within a warp).
+def FSA_XLANEID   : SysReg<"xlaneid", 0xFD0>;
+
+//===-----------------------------------------------
+// Per-core CSRs
+//===-----------------------------------------------
+
+// Number of lanes (hardware threads) supported per core.
+// Represents the SIMD width of the core.
+def FSA_XLANES    : SysReg<"xlanes", 0xFE0>;
