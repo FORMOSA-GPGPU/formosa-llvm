@@ -465,34 +465,32 @@ def : SysReg<"sctrdepth", 0x15f>;
 def : SysReg<"vsctrctl", 0x24e>;
 def : SysReg<"mctrctl", 0x34e>;
 
+//===----------------------------------------------------------------------===//
+// Formosa Custom CSRs (Read-Only)
+//===----------------------------------------------------------------------===//
+
 //===-----------------------------------------------
-// Formosa CSRs
+// Per-warp CSRs
 //===-----------------------------------------------
-multiclass RISCVFSACSR<string mnemonic, int base> {
-  def X : SysReg<!strconcat(mnemonic, "x"), !add(base, 0)>;
-  def Y : SysReg<!strconcat(mnemonic, "y"), !add(base, 1)>;
-  def Z : SysReg<!strconcat(mnemonic, "z"), !add(base, 2)>;
-}
 
-// Formosa per-core CSRs
-def  FSA_XCID         : SysReg<"xcid", 0xFC0>;
-def  FSA_XNW          : SysReg<"xnw", 0xFC1>;
-defm FSA_XCLGS        : RISCVFSACSR<"xclgs", 0xFC2>;
-defm FSA_XCLGOFF      : RISCVFSACSR<"xclgoff", 0xFC5>;
-defm FSA_XCLS         : RISCVFSACSR<"xcls", 0xFC8>;
-defm FSA_XCLW         : RISCVFSACSR<"xclw", 0xFCB>;
-def  FSA_XDIM         : SysReg<"xdim", 0xFCE>;
-def  FSA_XMHARTIDBASE : SysReg<"xmhartidbase", 0xFCF>;
-def  FSA_XKERNELPC    : SysReg<"xkernelpc", 0xFE5>;
-def  FSA_XKERNELARG   : SysReg<"xkernelarg", 0xFE7>;
+// Identifies the current execution warp inside the core.
+def FSA_XWID      : SysReg<"xwid", 0xFC0>;
 
-// Formosa per-warp CSRs
-// def  FSA_XWID         : SysReg<"xwid", 0xFD0>;
-def  FSA_XNT          : SysReg<"xnt", 0xFD1>;
+// Warp execution width.
+// Indicates how many activated lanes (threads) are in the warp.
+def FSA_XWLEN     : SysReg<"xwlen", 0xFC1>;
 
-// Formosa per-thread CSRs
-def  FSA_XTID         : SysReg<"xtid", 0xFE0>;
-def  FSA_XTSTATUS     : SysReg<"xtstatus", 0xFE1>;
-defm FSA_XCLL         : RISCVFSACSR<"xcll", 0xFE2>;
+//===-----------------------------------------------
+// Per-thread CSRs
+//===-----------------------------------------------
 
-def FSA_XLANEID       : SysReg<"xlaneid", 0xFD0>;
+// Lane ID (local thread ID within a warp).
+def FSA_XLANEID   : SysReg<"xlaneid", 0xFD0>;
+
+//===-----------------------------------------------
+// Per-core CSRs
+//===-----------------------------------------------
+
+// Number of lanes (hardware threads) supported per core.
+// Represents the SIMD width of the core.
+def FSA_XLANES    : SysReg<"xlanes", 0xFE0>;
