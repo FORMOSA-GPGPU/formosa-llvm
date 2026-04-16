@@ -746,7 +746,8 @@ void RISCVPassConfig::addPreEmitPass2() {
   bool FSAUseRelativePri = EnableFSAIPDOMLike || UseFSAICSFirst || EnableFSAPostTopo || EnableFSADFIC || EnableFSADTPP;
   bool FSAUseAbsPri =
       (EnableFSAMinPC || EnableFSAPDomLevelBasedPriority);
-  bool EnableFSAFunctionPriority = FSAUseAbsPri;
+  // New target did not support funct priority
+  bool EnableFSAFunctionPriority = false;
   if (EnableFSAFunctionPriority) {
     MCSubtargetInfo STI = *TM->getMCSubtargetInfo();
     if (!STI.hasFeature(RISCV::FeatureVendorXFormosaPri)) {
