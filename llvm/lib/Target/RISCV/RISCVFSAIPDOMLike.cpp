@@ -24,6 +24,8 @@ private:
   const RISCVInstrInfo *TII;
   MachinePostDominatorTree *PostDominatorTree;
   MachineLoopInfo *MLI;
+  MachineBasicBlock::iterator blockBeginInsertPt(MachineBasicBlock &MBB);
+  bool shouldSkipInsertion(MachineBasicBlock &MBB);
 
 public:
   static char ID;
@@ -69,6 +71,22 @@ void RISCVFSAIPDOMLike::initialize(MachineFunction &MF) {
   TRI = ST.getRegisterInfo();
 }
 
+MachineBasicBlock::iterator
+RISCVFSAIPDOMLike::blockBeginInsertPt(MachineBasicBlock &MBB) {
+  return MBB.SkipPHIsLabelsAndDebug(MBB.begin());
+}
+
+bool RISCVFSAIPDOMLike::shouldSkipInsertion(MachineBasicBlock &MBB) {
+  unsigned Count = 0;
+  for (auto It = blockBeginInsertPt(MBB), End = MBB.end(); It != End; ++It) {
+    MachineInstr &MI = *It;
+    if (MI.getOpcode() == RISCV::FSA_BAR || MI.isTerminator())
+      break;
+    ++Count;
+  }
+  return Count <= 2;
+}
+
 bool RISCVFSAIPDOMLike::runOnMachineFunction(MachineFunction &MF) {
   LLVM_DEBUG(
       dbgs() << "------------------------------------------------------------"
@@ -101,6 +119,8 @@ bool RISCVFSAIPDOMLike::runOnMachineFunction(MachineFunction &MF) {
       if (!ImmPostDomMBBOrNull || ImmPostDomMBBOrNull == &MBB ||
           ImmPostDomMBBOrNull->succ_empty())
         continue;
+      if (shouldSkipInsertion(*ImmPostDomMBBOrNull))
+        continue;
       MadeChange = true;
       ImmPostDominatorMBBSet.insert(ImmPostDomMBBOrNull);
       ImmPDomLevelSet.insert(ImmPostDomNodeOrNull->getLevel());
@@ -115,7 +135,8 @@ bool RISCVFSAIPDOMLike::runOnMachineFunction(MachineFunction &MF) {
     int PriPairCnt = std::distance(ImmPDomLevelSet.begin(), PDomLv) + 1;
 
     // Insert Lower at begining to wait other threads for reconverge
-    BuildMI(*MBB, MBB->begin(), MBB->findDebugLoc(MBB->begin()),
+    auto MBBBeginIt = blockBeginInsertPt(*MBB);
+    BuildMI(*MBB, MBBBeginIt, MBB->findDebugLoc(MBBBeginIt),
       TII->get(RISCV::FSA_PRI_LOWER_N)).addImm(PriPairCnt);
 
     auto MBBTermIt = MBB->getFirstTerminator();
@@ -135,7 +156,8 @@ bool RISCVFSAIPDOMLike::runOnMachineFunction(MachineFunction &MF) {
 
     // At every exit, lower pri to reset priority
     for (MachineBasicBlock *MBB : ExitMBBSet) {
-      BuildMI(*MBB, MBB->begin(), MBB->findDebugLoc(MBB->begin()),
+      auto MBBBeginIt = blockBeginInsertPt(*MBB);
+      BuildMI(*MBB, MBBBeginIt, MBB->findDebugLoc(MBBBeginIt),
         TII->get(RISCV::FSA_PRI_LOWER_N)).addImm(MaxPriPairCnt);
     }
   }

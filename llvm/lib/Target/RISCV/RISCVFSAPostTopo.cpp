@@ -64,12 +64,34 @@ RISCVFSAPostTopo::blockBeginInsertPt(MachineBasicBlock &MBB) {
 }
 
 bool RISCVFSAPostTopo::shouldSkipInsertion(MachineBasicBlock &MBB) {
-  unsigned Count = 0;
-  for (auto It = blockBeginInsertPt(MBB), End = MBB.end(); It != End; ++It) {
-    MachineInstr &MI = *It;
-    if (MI.getOpcode() == RISCV::FSA_BAR || MI.isTerminator())
-      break;
-    ++Count;
+  auto CountUntilBarOrTerm = [this](MachineBasicBlock &Block, bool &HitBar) {
+    unsigned Count = 0;
+    HitBar = false;
+    for (auto It = blockBeginInsertPt(Block), End = Block.end(); It != End;
+         ++It) {
+      MachineInstr &MI = *It;
+      if (MI.getOpcode() == RISCV::FSA_BAR) {
+        HitBar = true;
+        break;
+      }
+      if (MI.isTerminator())
+        break;
+      ++Count;
+    }
+    return Count;
+  };
+
+  bool HitBar = false;
+  unsigned Count = CountUntilBarOrTerm(MBB, HitBar);
+  if (HitBar)
+    return Count <= 2;
+
+  if (MBB.succ_size() == 1) {
+    MachineBasicBlock *SuccMBB = *MBB.succ_begin();
+    if (SuccMBB != &MBB) {
+      bool SuccHitBar = false;
+      Count += CountUntilBarOrTerm(*SuccMBB, SuccHitBar);
+    }
   }
   return Count <= 2;
 }

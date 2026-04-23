@@ -1,8 +1,10 @@
 #include "RISCVInstrInfo.h"
 #include "RISCVRegisterInfo.h"
 #include "RISCVSubtarget.h"
+#include "llvm/CodeGen/MachineBasicBlock.h"
 #include "llvm/CodeGen/MachineDominators.h"
 #include "llvm/CodeGen/MachineFunction.h"
+#include "llvm/CodeGen/MachineInstr.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/Passes.h"
 #include "llvm/InitializePasses.h"
@@ -17,6 +19,8 @@ private:
   // Target Reg info
   const RISCVRegisterInfo *TRI;
   const RISCVInstrInfo *TII;
+  MachineBasicBlock::iterator blockBeginInsertPt(MachineBasicBlock &MBB);
+  bool shouldSkipInsertion(MachineBasicBlock &MBB);
 
 public:
   static char ID;
@@ -48,6 +52,22 @@ void RISCVFSAInsertMinPCPri::initialize(MachineFunction &MF) {
   TRI = ST.getRegisterInfo();
 }
 
+MachineBasicBlock::iterator
+RISCVFSAInsertMinPCPri::blockBeginInsertPt(MachineBasicBlock &MBB) {
+  return MBB.SkipPHIsLabelsAndDebug(MBB.begin());
+}
+
+bool RISCVFSAInsertMinPCPri::shouldSkipInsertion(MachineBasicBlock &MBB) {
+  unsigned Count = 0;
+  for (auto It = blockBeginInsertPt(MBB), End = MBB.end(); It != End; ++It) {
+    MachineInstr &MI = *It;
+    if (MI.getOpcode() == RISCV::FSA_BAR || MI.isTerminator())
+      break;
+    ++Count;
+  }
+  return Count <= 2;
+}
+
 bool RISCVFSAInsertMinPCPri::runOnMachineFunction(MachineFunction &MF) {
   LLVM_DEBUG(dbgs() << "Pass RISCVFSAInsertMinPCPri: " << MF.getName() << "\n");
   initialize(MF);
@@ -69,11 +89,15 @@ bool RISCVFSAInsertMinPCPri::runOnMachineFunction(MachineFunction &MF) {
   LLVM_DEBUG(dbgs() << "Number of MBBs: " << NumMBBs << "\n");
 
   for (MachineBasicBlock &MBB : MF) {
+    if (shouldSkipInsertion(MBB))
+      continue;
+
     // set the priority based on the occurrence of basic blocks, basic blocks
     // with lower PC value have higher priority
     // Insert fsa.pri.set <priority>
     unsigned BlockPriority = NumMBBs - MBB.getNumber();
-    BuildMI(MBB, MBB.begin(), MBB.findDebugLoc(MBB.begin()),
+    auto MBBBeginIt = blockBeginInsertPt(MBB);
+    BuildMI(MBB, MBBBeginIt, MBB.findDebugLoc(MBBBeginIt),
             TII->get(RISCV::FSA_PRI_SET))
         .addImm(BlockPriority);
     MadeChange = true;
