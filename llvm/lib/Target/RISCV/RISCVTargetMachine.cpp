@@ -205,12 +205,6 @@ cl::opt<int> FSAInstrCnt(
   cl::init(-1)
 );
 
-cl::opt<int> FSALowerLoadLookahead(
-  "fsa-lower-load-lookahead", cl::Hidden,
-  cl::desc("Number of non-debug instructions to scan for a later memory load before placing fsa lower"),
-  cl::init(12)
-);
-
 extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeRISCVTarget() {
   RegisterTargetMachine<RISCVTargetMachine> X(getTheRISCV32Target());
   RegisterTargetMachine<RISCVTargetMachine> Y(getTheRISCV64Target());
