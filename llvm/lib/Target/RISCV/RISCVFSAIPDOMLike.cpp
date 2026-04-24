@@ -25,7 +25,6 @@ private:
   MachinePostDominatorTree *PostDominatorTree;
   MachineLoopInfo *MLI;
   MachineBasicBlock::iterator blockBeginInsertPt(MachineBasicBlock &MBB);
-  bool shouldSkipInsertion(MachineBasicBlock &MBB);
 
 public:
   static char ID;
@@ -76,17 +75,6 @@ RISCVFSAIPDOMLike::blockBeginInsertPt(MachineBasicBlock &MBB) {
   return MBB.SkipPHIsLabelsAndDebug(MBB.begin());
 }
 
-bool RISCVFSAIPDOMLike::shouldSkipInsertion(MachineBasicBlock &MBB) {
-  unsigned Count = 0;
-  for (auto It = blockBeginInsertPt(MBB), End = MBB.end(); It != End; ++It) {
-    MachineInstr &MI = *It;
-    if (MI.getOpcode() == RISCV::FSA_BAR || MI.isTerminator())
-      break;
-    ++Count;
-  }
-  return Count <= 2;
-}
-
 bool RISCVFSAIPDOMLike::runOnMachineFunction(MachineFunction &MF) {
   LLVM_DEBUG(
       dbgs() << "------------------------------------------------------------"
@@ -118,8 +106,6 @@ bool RISCVFSAIPDOMLike::runOnMachineFunction(MachineFunction &MF) {
       // dominator is exit bb exit bb will be dealed later independently
       if (!ImmPostDomMBBOrNull || ImmPostDomMBBOrNull == &MBB ||
           ImmPostDomMBBOrNull->succ_empty())
-        continue;
-      if (shouldSkipInsertion(*ImmPostDomMBBOrNull))
         continue;
       MadeChange = true;
       ImmPostDominatorMBBSet.insert(ImmPostDomMBBOrNull);
