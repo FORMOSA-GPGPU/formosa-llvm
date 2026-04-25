@@ -9136,3 +9136,12 @@ def wasm_opt : Flag<["--"], "wasm-opt">,
   Group<m_Group>,
   HelpText<"Enable the wasm-opt optimizer (default)">,
   MarshallingInfoNegativeFlag<LangOpts<"NoWasmOpt">>;
+
+//===----------------------------------------------------------------------===//
+// Formosa Options
+//===----------------------------------------------------------------------===//
+let Visibility = [ClangOption, CC1Option] in {
+  def fsa_ics_first : Flag<["-"], "fsa-ics-first-cg">,
+  HelpText<"enable fsa ics first divergence handling scheme">,
+  MarshallingInfoFlag<CodeGenOpts<"FSAICSFirst">>;
+} // let Visibility = [ClangOption, CC1Option]

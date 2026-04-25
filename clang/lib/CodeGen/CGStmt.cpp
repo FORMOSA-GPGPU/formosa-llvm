@@ -63,9 +63,8 @@ void CodeGenFunction::EmitStopPoint(const Stmt *S) {
   }
 }
 
-bool UseFSAICSFirst __attribute__((weak));
-void CodeGenFunction::CallRISCVFSAPriIntrinsic(llvm::Intrinsic::ID ID, unsigned pri) {
-  if (UseFSAICSFirst) {
+void CodeGenFunction::CallRISCVFSAPriIntrinsic(llvm::Intrinsic::ID ID) {
+  if (CGM.getCodeGenOpts().FSAICSFirst) {
     if (!getTarget().hasFeature("xformosapri")) {
       llvm::report_fatal_error("FSA ICS-First requires XFormosaPri extension");
     }
