@@ -145,6 +145,9 @@ void initializeRISCVFSADFICPass(PassRegistry &);
 FunctionPass *createRISCVFSACleanUpPass();
 void initializeRISCVFSACleanUpPass(PassRegistry &);
 
+FunctionPass *createRISCVFSAPatchBarPass();
+void initializeRISCVFSAPatchBarPass(PassRegistry &);
+
 FunctionPass *createRISCVFSAPriQuantPass();
 void initializeRISCVFSAPriQuantPass(PassRegistry &);
 

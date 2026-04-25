@@ -44,6 +44,7 @@ add_llvm_target(RISCVCodeGen
   RISCVFSAUniPri.cpp
   RISCVFSADFIC.cpp
   RISCVFSACleanUp.cpp
+  RISCVFSAPatchBar.cpp
   RISCVFSAPriQuant.cpp
   RISCVFSAPriDup.cpp
   RISCVGatherScatterLowering.cpp

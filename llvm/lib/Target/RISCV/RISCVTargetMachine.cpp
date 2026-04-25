@@ -242,6 +242,7 @@ extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeRISCVTarget() {
   initializeRISCVFSADFICPass(*PR);
   initializeRISCVFSAIPDOMLikePass(*PR);
   initializeRISCVFSACleanUpPass(*PR);
+  initializeRISCVFSAPatchBarPass(*PR);
   initializeRISCVFSAPriDupPass(*PR);
   initializeRISCVFSAPriQuantPass(*PR);
 }
@@ -761,6 +762,8 @@ void RISCVPassConfig::addPreEmitPass2() {
     if (FSAFusePriInst) {
       addPass(createRISCVFSACleanUpPass());
     }
+
+    addPass(createRISCVFSAPatchBarPass());
 
     if(FSAPriDupCount) {
       // CleanUpPass will merge duplicated inst into one, cause PriDupCount takes no effect
