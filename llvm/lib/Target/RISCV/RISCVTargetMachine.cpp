@@ -129,31 +129,16 @@ static cl::opt<bool> EnableFSAPostTopo(
   cl::desc("Enable the post order dfs pass for divergence handling"),
   cl::init(false));
 
-static cl::opt<bool> EnableFSADTPP(
-  "fsa-dtpp", cl::Hidden,
-  cl::desc("Enable the dom tree priority propagation pass for divergence handling"),
-  cl::init(false));
-
-static cl::opt<bool> EnableFSAUniPri(
-  "fsa-uni-pri", cl::Hidden,
-  cl::desc("Enable the uniform priority pass for divergence handling"),
-  cl::init(false));
-
-static cl::opt<bool> EnableFSADFIC(
-  "fsa-dfic", cl::Hidden,
-  cl::desc("Enable the dominance frontier intersection count pass for divergence handling"),
-  cl::init(false));
+static cl::opt<bool> EnableFSAPDomLevelBasedPriority(
+    "fsa-pdom-level", cl::Hidden,
+    cl::desc("Enable PDOM level based pass for divergence handling"),
+    cl::init(false));
 
 bool UseFSAICSFirst = false;
 static cl::opt<bool, true> EnableFSAICSFirst(
     "fsa-ics-first", cl::Hidden,
     cl::desc("Enable the ICS-First pass for divergence handling"),
     cl::location(UseFSAICSFirst));
-
-static cl::opt<bool> EnableFSAPDomLevelBasedPriority(
-    "fsa-pdom-level", cl::Hidden,
-    cl::desc("Enable PDOM level based pass for divergence handling"),
-    cl::init(false));
 
 static cl::opt<bool> EnableFSAIPDOMLike(
     "fsa-ipdom-like", cl::Hidden,
@@ -187,11 +172,6 @@ cl::opt<int> FSAMaxPri(
   "fsa-max-pri", cl::Hidden,
   cl::desc("Set max allowable pri for quantization pri pass"),
   cl::init(8));
-
-cl::opt<int> FSAPriDupCount(
-  "fsa-pri-dup-count", cl::Hidden,
-  cl::desc("Number of times to duplicate fsa.pri instructions for profiling (default: 0)"),
-  cl::init(0));
 
 cl::opt<int> FSABBNum(
   "fsa-bb-num", cl::Hidden,
@@ -237,13 +217,9 @@ extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeRISCVTarget() {
   initializeRISCVFSAInsertMinPCPriPass(*PR);
   initializeRISCVFSAPDomLevelBasedPriorityPass(*PR);
   initializeRISCVFSAPostTopoPass(*PR);
-  initializeRISCVFSADTPPPass(*PR);
-  initializeRISCVFSAUniPriPass(*PR);
-  initializeRISCVFSADFICPass(*PR);
   initializeRISCVFSAIPDOMLikePass(*PR);
   initializeRISCVFSACleanUpPass(*PR);
   initializeRISCVFSAPatchBarPass(*PR);
-  initializeRISCVFSAPriDupPass(*PR);
   initializeRISCVFSAPriQuantPass(*PR);
 }
 
@@ -723,30 +699,6 @@ void RISCVPassConfig::addPreEmitPass2() {
     addPass(createRISCVFSAPostTopoPass());
   }
 
-  if (EnableFSADTPP) {
-    MCSubtargetInfo STI = *TM->getMCSubtargetInfo();
-    if (!STI.hasFeature(RISCV::FeatureVendorXFormosaPri))
-      report_fatal_error("FSA post order topo pass requires XFormosaPri extension");
-    addPass(createRISCVFSADTPPPass());
-  }
-
-  if (EnableFSAUniPri) {
-    MCSubtargetInfo STI = *TM->getMCSubtargetInfo();
-    if (!STI.hasFeature(RISCV::FeatureVendorXFormosaPri))
-      report_fatal_error("FSA uniform pri pass requires XFormosaPri extension");
-    addPass(createRISCVFSAUniPriPass());
-  }
-
-  if (EnableFSADFIC) {
-    MCSubtargetInfo STI = *TM->getMCSubtargetInfo();
-    if (!STI.hasFeature(RISCV::FeatureVendorXFormosaPri))
-      report_fatal_error("FSA df intersection cnt pass requires XFormosaPri extension");
-    addPass(createRISCVFSADFICPass());
-  }
-
-  bool FSAUseRelativePri = EnableFSAIPDOMLike || UseFSAICSFirst || EnableFSAPostTopo || EnableFSADFIC || EnableFSADTPP;
-  bool FSAUseAbsPri =
-      (EnableFSAMinPC || EnableFSAPDomLevelBasedPriority);
   // New target did not support funct priority
   bool EnableFSAFunctionPriority = false;
   if (EnableFSAFunctionPriority) {
@@ -764,13 +716,6 @@ void RISCVPassConfig::addPreEmitPass2() {
     }
 
     addPass(createRISCVFSAPatchBarPass());
-
-    if(FSAPriDupCount) {
-      // CleanUpPass will merge duplicated inst into one, cause PriDupCount takes no effect
-      if (FSAFusePriInst)
-        llvm::report_fatal_error("-fsa-fuse-pri is conflict with -fsa-pri-dup-count, cannot apply both flags at same time");
-      addPass(createRISCVFSAPriDupPass());
-    }
     addPass(createRISCVFSAPriQuantPass());
   }
 }

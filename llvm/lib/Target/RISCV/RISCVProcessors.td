@@ -136,24 +136,6 @@ def ROCKET_RV64 : RISCVProcessorModel<"rocket-rv64",
 def ROCKET : RISCVTuneProcessorModel<"rocket",
                                      RocketModel>;
 
-def LUNAR : RISCVProcessorModel<"lunar-rv64",
-                                LunarModel,
-                                [Feature64Bit,
-                                FeatureStdExtI,
-                                FeatureStdExtZicsr,
-                                FeatureStdExtZifencei,
-                                FeatureStdExtM,
-                                FeatureStdExtA]>;
-
-def DUMMY : RISCVProcessorModel<"dummy-rv64",
-                                FormosaModel,
-                                [Feature64Bit,
-                                FeatureStdExtI,
-                                FeatureStdExtZicsr,
-                                FeatureStdExtZifencei,
-                                FeatureStdExtM,
-                                FeatureStdExtA]>;
-
 def FORMOSA_GPGPU : RISCVProcessorModel<"formosa-gpgpu",
                                         FormosaModel,
                                         [Feature64Bit,

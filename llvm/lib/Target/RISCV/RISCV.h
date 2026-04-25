@@ -132,16 +132,6 @@ void initializeRISCVFSAIPDOMLikePass(PassRegistry &);
 FunctionPass *createRISCVFSAPostTopoPass();
 void initializeRISCVFSAPostTopoPass(PassRegistry &);
 
-FunctionPass *createRISCVFSADTPPPass();
-void initializeRISCVFSADTPPPass(PassRegistry &);
-
-
-FunctionPass *createRISCVFSAUniPriPass();
-void initializeRISCVFSAUniPriPass(PassRegistry &);
-
-FunctionPass *createRISCVFSADFICPass();
-void initializeRISCVFSADFICPass(PassRegistry &);
-
 FunctionPass *createRISCVFSACleanUpPass();
 void initializeRISCVFSACleanUpPass(PassRegistry &);
 
@@ -150,9 +140,6 @@ void initializeRISCVFSAPatchBarPass(PassRegistry &);
 
 FunctionPass *createRISCVFSAPriQuantPass();
 void initializeRISCVFSAPriQuantPass(PassRegistry &);
-
-FunctionPass *createRISCVFSAPriDupPass();
-void initializeRISCVFSAPriDupPass(PassRegistry &);
 } // namespace llvm
 
 #endif

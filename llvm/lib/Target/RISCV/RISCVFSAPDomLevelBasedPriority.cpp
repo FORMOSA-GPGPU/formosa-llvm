@@ -15,7 +15,6 @@ using namespace llvm;
 namespace {
 class RISCVFSAPDomLevelBasedPriority : public MachineFunctionPass {
 private:
-  // Target Reg info
   const RISCVRegisterInfo *TRI;
   const RISCVInstrInfo *TII;
   MachinePostDominatorTree *MPDT;
@@ -67,7 +66,6 @@ bool RISCVFSAPDomLevelBasedPriority::runOnMachineFunction(MachineFunction &MF) {
                 "\n\n\n";);
   bool MadeChange = false;
   initialize(MF);
-  // Skip insertion only when opt level is not none
   bool AllowSkip = (MF.getTarget().getOptLevel() != CodeGenOptLevel::None);
 
   if ((!MF.getProperties().hasProperty(
@@ -81,13 +79,6 @@ bool RISCVFSAPDomLevelBasedPriority::runOnMachineFunction(MachineFunction &MF) {
   for (MachineBasicBlock &MBB : MF) {
     DomTreeNodeBase<MachineBasicBlock> *PDomNode = MPDT->getNode(&MBB);
 
-    // Skip insertion of the `pri.set` instruction ONLY if it has already been
-    // inserted previously (indicated by MadeChange being true). This is
-    // especially for the entry block, which has no predecessors and therefore
-    // does not need a redundant check. To ensure that a `pri.set` instruction
-    // is inserted in the entry block, we initialize "IsRedundantInsertion" to
-    // false (the value of MadeChange) at the beginning of processing for each
-    // block.
     bool IsRedundantInsertion = MadeChange;
     if (!PDomNode) {
       LLVM_DEBUG(
@@ -98,10 +89,6 @@ bool RISCVFSAPDomLevelBasedPriority::runOnMachineFunction(MachineFunction &MF) {
 
     unsigned int PDomLevel = PDomNode->getLevel();
 
-    // "CPNLevel" stands for "corresponding PDom node level in the PDom tree."
-    // If the CPNLevel of the current MBB is the same as that of all its
-    // predecessors, the insertion of the current MBB is redundant and
-    // should be skipped. The following code performs this check.
     for (MachineBasicBlock *Pred : predecessors(&MBB)) {
       DomTreeNodeBase<MachineBasicBlock> *PredPDomNode = MPDT->getNode(Pred);
       if (!PredPDomNode) {
@@ -126,7 +113,6 @@ bool RISCVFSAPDomLevelBasedPriority::runOnMachineFunction(MachineFunction &MF) {
       continue;
     }
 
-    // set the priority based on the level of IDom
     LLVM_DEBUG(dbgs() << "BB " << MBB.getName() << " priority: " << PDomLevel
                       << "\n");
     if (PDomLevel > 63) {
