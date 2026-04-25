@@ -14,6 +14,7 @@
 using namespace llvm;
 #define DEBUG_TYPE "RISCVFSAPostTopo"
 extern cl::opt<bool> FSASkipLoopHeader;
+extern cl::opt<bool> FSASkipSmallBB;
 namespace {
 class RISCVFSAPostTopo : public MachineFunctionPass {
 private:
@@ -77,7 +78,9 @@ RISCVFSAPostTopo::blockBeginInsertPt(MachineBasicBlock &MBB) {
 }
 
 bool RISCVFSAPostTopo::shouldSkipInsertion(MachineBasicBlock &MBB) {
-  // return false; // Do not skip by default
+  if (!FSASkipSmallBB)
+    return false;
+
   auto CountUntilTerm = [this](MachineBasicBlock &Block) {
     unsigned Count = 0;
     for (auto It = blockBeginInsertPt(Block), End = Block.end(); It != End;
