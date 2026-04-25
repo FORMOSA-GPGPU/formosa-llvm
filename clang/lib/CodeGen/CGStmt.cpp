@@ -63,12 +63,14 @@ void CodeGenFunction::EmitStopPoint(const Stmt *S) {
   }
 }
 
-void CodeGenFunction::CallRISCVFSAPriIntrinsic(llvm::Intrinsic::ID ID) {
+void CodeGenFunction::CallRISCVFSAPriIntrinsic(llvm::Intrinsic::ID ID,
+                                               unsigned pri) {
   if (CGM.getCodeGenOpts().FSAICSFirst) {
     if (!getTarget().hasFeature("xformosapri")) {
       llvm::report_fatal_error("FSA ICS-First requires XFormosaPri extension");
     }
-    Builder.CreateCall(CGM.getIntrinsic(ID));
+    llvm::Value *V = llvm::ConstantInt::get(Builder.getInt64Ty(), pri);
+    Builder.CreateCall(CGM.getIntrinsic(ID), {V});
   }
 }
 
@@ -212,7 +214,7 @@ void CodeGenFunction::EmitStmt(const Stmt *S, ArrayRef<const Attr *> Attrs) {
     EmitIndirectGotoStmt(cast<IndirectGotoStmt>(*S)); break;
 
   case Stmt::IfStmtClass:
-    CallRISCVFSAPriIntrinsic(llvm::Intrinsic::riscv_fsa_pri_raise);
+    CallRISCVFSAPriIntrinsic(llvm::Intrinsic::riscv_fsa_pri_raise_n, 1);
     EmitIfStmt(cast<IfStmt>(*S));
     // Do not generate riscv_fsa_pri_lower if all children has ReturnStmt
     // or GotoStmt. The lower instruction will be handled and inserted in the
@@ -224,29 +226,29 @@ void CodeGenFunction::EmitStmt(const Stmt *S, ArrayRef<const Attr *> Attrs) {
            ChildrenContainStmtClasses(
                cast<IfStmt>(*S).getElse(),
                {Stmt::ReturnStmtClass, Stmt::GotoStmtClass})))) {
-      CallRISCVFSAPriIntrinsic(llvm::Intrinsic::riscv_fsa_pri_lower);
+      CallRISCVFSAPriIntrinsic(llvm::Intrinsic::riscv_fsa_pri_lower_n, 1);
     }
     break;
   case Stmt::WhileStmtClass:
-    CallRISCVFSAPriIntrinsic(llvm::Intrinsic::riscv_fsa_pri_raise);
+    CallRISCVFSAPriIntrinsic(llvm::Intrinsic::riscv_fsa_pri_raise_n, 1);
     EmitWhileStmt(cast<WhileStmt>(*S), Attrs);
-    CallRISCVFSAPriIntrinsic(llvm::Intrinsic::riscv_fsa_pri_lower);
+    CallRISCVFSAPriIntrinsic(llvm::Intrinsic::riscv_fsa_pri_lower_n, 1);
     break;
   case Stmt::DoStmtClass:
-    CallRISCVFSAPriIntrinsic(llvm::Intrinsic::riscv_fsa_pri_raise);
+    CallRISCVFSAPriIntrinsic(llvm::Intrinsic::riscv_fsa_pri_raise_n, 1);
     EmitDoStmt(cast<DoStmt>(*S), Attrs);
-    CallRISCVFSAPriIntrinsic(llvm::Intrinsic::riscv_fsa_pri_lower);
+    CallRISCVFSAPriIntrinsic(llvm::Intrinsic::riscv_fsa_pri_lower_n, 1);
     break;
   case Stmt::ForStmtClass:
-    CallRISCVFSAPriIntrinsic(llvm::Intrinsic::riscv_fsa_pri_raise);
+    CallRISCVFSAPriIntrinsic(llvm::Intrinsic::riscv_fsa_pri_raise_n, 1);
     EmitForStmt(cast<ForStmt>(*S), Attrs);
-    CallRISCVFSAPriIntrinsic(llvm::Intrinsic::riscv_fsa_pri_lower);
+    CallRISCVFSAPriIntrinsic(llvm::Intrinsic::riscv_fsa_pri_lower_n, 1);
     break;
   case Stmt::ReturnStmtClass:
     EmitReturnStmt(cast<ReturnStmt>(*S));
     break;
   case Stmt::SwitchStmtClass:
-    CallRISCVFSAPriIntrinsic(llvm::Intrinsic::riscv_fsa_pri_raise);
+    CallRISCVFSAPriIntrinsic(llvm::Intrinsic::riscv_fsa_pri_raise_n, 1);
     EmitSwitchStmt(cast<SwitchStmt>(*S));
     break;
   case Stmt::GCCAsmStmtClass: // Intentional fall-through.
@@ -290,9 +292,9 @@ void CodeGenFunction::EmitStmt(const Stmt *S, ArrayRef<const Attr *> Attrs) {
     EmitCXXTryStmt(cast<CXXTryStmt>(*S));
     break;
   case Stmt::CXXForRangeStmtClass:
-    CallRISCVFSAPriIntrinsic(llvm::Intrinsic::riscv_fsa_pri_raise);
+    CallRISCVFSAPriIntrinsic(llvm::Intrinsic::riscv_fsa_pri_raise_n, 1);
     EmitCXXForRangeStmt(cast<CXXForRangeStmt>(*S), Attrs);
-    CallRISCVFSAPriIntrinsic(llvm::Intrinsic::riscv_fsa_pri_lower);
+    CallRISCVFSAPriIntrinsic(llvm::Intrinsic::riscv_fsa_pri_lower_n, 1);
     break;
   case Stmt::SEHTryStmtClass:
     EmitSEHTryStmt(cast<SEHTryStmt>(*S));
@@ -930,7 +932,7 @@ void CodeGenFunction::EmitGotoStmt(const GotoStmt &S) {
             Stmt::ForStmtClass, Stmt::CXXForRangeStmtClass,
             Stmt::SwitchStmtClass}))) {
     for (int i = 0; i < conditionalStmtCount; i++)
-      CallRISCVFSAPriIntrinsic(llvm::Intrinsic::riscv_fsa_pri_lower);
+      CallRISCVFSAPriIntrinsic(llvm::Intrinsic::riscv_fsa_pri_lower_n, 1);
   }
   EmitBranchThroughCleanup(getJumpDestForLabel(S.getLabel()));
 }
@@ -1744,7 +1746,7 @@ void CodeGenFunction::EmitReturnStmt(const ReturnStmt &S) {
             Stmt::ForStmtClass, Stmt::CXXForRangeStmtClass,
             Stmt::SwitchStmtClass}))) {
     for (int i = 0; i < conditionalStmtCount; i++)
-      CallRISCVFSAPriIntrinsic(llvm::Intrinsic::riscv_fsa_pri_lower);
+      CallRISCVFSAPriIntrinsic(llvm::Intrinsic::riscv_fsa_pri_lower_n, 1);
   }
 
   cleanupScope.ForceCleanup();
@@ -1765,7 +1767,7 @@ void CodeGenFunction::EmitBreakStmt(const BreakStmt &S) {
   assert(!BreakContinueStack.empty() && "break stmt not in a loop or switch!");
 
   if (!BreakContinueStack.empty()) {
-    CallRISCVFSAPriIntrinsic(llvm::Intrinsic::riscv_fsa_pri_lower);
+    CallRISCVFSAPriIntrinsic(llvm::Intrinsic::riscv_fsa_pri_lower_n, 1);
   }
   EmitBranchThroughCleanup(BreakContinueStack.back().BreakBlock);
 }

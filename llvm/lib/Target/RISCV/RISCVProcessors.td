@@ -145,8 +145,10 @@ def FORMOSA_GPGPU : RISCVProcessorModel<"formosa-gpgpu",
                                          FeatureStdExtM,
                                          FeatureStdExtZdinx,
                                          FeatureStdExtZicond,
+                                         FeatureStdExtZaamo,
                                          FeatureVendorXFormosaPri,
-                                         FeatureVendorXFormosaBar]>;
+                                         FeatureVendorXFormosaBar,
+                                         FeatureVendorXFormosaGFX]>;
 
 defvar SiFive7TuneFeatures = [TuneSiFive7, TuneNoDefaultUnroll,
                               TuneShortForwardBranchOpt,
