@@ -19,7 +19,7 @@ stdenv.mkDerivation {
   configurePhase = ''
     cmake -B build -G Ninja -S llvm \
           -D CMAKE_INSTALL_PREFIX=$out \
-          -D LLVM_ENABLE_PROJECTS="clang;lld;libclc" \
+          -D LLVM_ENABLE_PROJECTS="clang;lld" \
           -D CMAKE_BUILD_TYPE=Release \
           -D LLVM_DEFAULT_TARGET_TRIPLE=riscv64-unknown-elf \
           -D LLVM_TARGETS_TO_BUILD="RISCV" \

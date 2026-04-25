@@ -144,6 +144,8 @@ let Features = "xformosapri,64bit" in {
 def fsa_pri_reset : RISCVBuiltin<"void()">;
 def fsa_pri_raise : RISCVBuiltin<"void()">;
 def fsa_pri_lower : RISCVBuiltin<"void()">;
+def fsa_pri_raise_n : RISCVBuiltin<"void(uint64_t)">;
+def fsa_pri_lower_n : RISCVBuiltin<"void(uint64_t)">;
 def fsa_pri_set   : RISCVBuiltin<"void(uint64_t)">;
 
 //===----------------------------------------------------------------------===//
@@ -175,9 +177,23 @@ def fsa_barrier : RISCVBuiltin<"void(uint64_t, uint64_t)">;
 } // Attributes = [Const, NoThrow]
 
 //===----------------------------------------------------------------------===//
+// XformosaGFX extension.
+//===----------------------------------------------------------------------===//
+let Features = "xformosagfx,64bit" in {
+def fsa_rop : RISCVBuiltin<"void(uint32_t, uint32_t, uint32_t)">;
+def fsa_tex : RISCVBuiltin<"uint32_t(uint32_t, uint32_t, uint32_t, uint32_t)">;
+def fsa_swap : RISCVBuiltin<"uint64_t(uint32_t, uint32_t)">;
+}
+
+//===----------------------------------------------------------------------===//
 // Zihintntl extension.
 //===----------------------------------------------------------------------===//
 let Features = "zihintntl", Attributes = [CustomTypeChecking] in {
 def ntl_load : RISCVBuiltin<"void(...)">;
 def ntl_store : RISCVBuiltin<"void(...)">;
 } // Features = "zihintntl", Attributes = [CustomTypeChecking]
+
+//===----------------------------------------------------------------------===//
+// XCV extensions.
+//===----------------------------------------------------------------------===//
+include "clang/Basic/BuiltinsRISCVXCV.td"

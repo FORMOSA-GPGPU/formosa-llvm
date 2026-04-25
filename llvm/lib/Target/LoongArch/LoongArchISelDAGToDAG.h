@@ -26,8 +26,9 @@ class LoongArchDAGToDAGISel : public SelectionDAGISel {
 public:
   LoongArchDAGToDAGISel() = delete;
 
-  explicit LoongArchDAGToDAGISel(LoongArchTargetMachine &TM)
-      : SelectionDAGISel(TM) {}
+  explicit LoongArchDAGToDAGISel(LoongArchTargetMachine &TM,
+                                 CodeGenOptLevel OptLevel)
+      : SelectionDAGISel(TM, OptLevel) {}
 
   bool runOnMachineFunction(MachineFunction &MF) override {
     Subtarget = &MF.getSubtarget<LoongArchSubtarget>();
@@ -43,6 +44,7 @@ public:
   bool SelectBaseAddr(SDValue Addr, SDValue &Base);
   bool SelectAddrConstant(SDValue Addr, SDValue &Base, SDValue &Offset);
   bool selectNonFIBaseAddr(SDValue Addr, SDValue &Base);
+  bool SelectAddrRegImm12(SDValue Addr, SDValue &Base, SDValue &Offset);
 
   bool selectShiftMask(SDValue N, unsigned ShiftWidth, SDValue &ShAmt);
   bool selectShiftMaskGRLen(SDValue N, SDValue &ShAmt) {
@@ -70,7 +72,8 @@ public:
 class LoongArchDAGToDAGISelLegacy : public SelectionDAGISelLegacy {
 public:
   static char ID;
-  explicit LoongArchDAGToDAGISelLegacy(LoongArchTargetMachine &TM);
+  explicit LoongArchDAGToDAGISelLegacy(LoongArchTargetMachine &TM,
+                                       CodeGenOptLevel OptLevel);
 };
 
 } // end namespace llvm
