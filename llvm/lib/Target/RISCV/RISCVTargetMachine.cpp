@@ -34,6 +34,7 @@
 #include "llvm/InitializePasses.h"
 #include "llvm/MC/TargetRegistry.h"
 #include "llvm/Passes/PassBuilder.h"
+#include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/RISCVFSAOption.h"
 #include "llvm/Target/TargetOptions.h"
 #include "llvm/Transforms/IPO.h"
@@ -123,21 +124,66 @@ static cl::opt<bool>
                    cl::desc("Enable the MinPC pass for divergence handling"),
                    cl::init(false));
 
-bool UseFSAICSFirst = false;
-static cl::opt<bool, true> EnableFSAICSFirst(
-    "fsa-ics-first", cl::Hidden,
-    cl::desc("Enable the ICS-First pass for divergence handling"),
-    cl::location(UseFSAICSFirst));
+static cl::opt<bool> EnableFSAPostTopo(
+  "fsa-post-topo", cl::Hidden,
+  cl::desc("Enable the post order dfs pass for divergence handling"),
+  cl::init(false));
 
 static cl::opt<bool> EnableFSAPDomLevelBasedPriority(
     "fsa-pdom-level", cl::Hidden,
     cl::desc("Enable PDOM level based pass for divergence handling"),
     cl::init(false));
 
+bool UseFSAICSFirst = false;
+static cl::opt<bool, true> EnableFSAICSFirst(
+    "fsa-ics-first", cl::Hidden,
+    cl::desc("Enable the ICS-First pass for divergence handling"),
+    cl::location(UseFSAICSFirst));
+
 static cl::opt<bool> EnableFSAIPDOMLike(
     "fsa-ipdom-like", cl::Hidden,
     cl::desc("Enable the IPDOM-like pass for divergence handling"),
     cl::init(false));
+
+// Following flags cannot be marked as static because they are used in externel passes
+cl::opt<bool> FSAFusePriInst(
+    "fsa-fuse-pri", cl::Hidden,
+    cl::desc("Fused multiple pri raise/lower into single raise_n/lower_n, default true"),
+    cl::init(true));
+
+cl::opt<bool> FSASkipMutualLoop(
+    "fsa-skip-mutual-loop", cl::Hidden,
+    cl::desc("Skip insertion if meet mutual loop (A->B and B->A)"),
+    cl::init(true));
+
+cl::opt<bool> FSASkipLoopHeader(
+  "fsa-skip-loop-header", cl::Hidden,
+  cl::desc("Skip reconv BBs that are belongs to loop header"),
+  cl::init(true)
+);
+
+cl::opt<bool> FSASkipReconvDiverge(
+  "fsa-skip-reconv-diverge", cl::Hidden,
+  cl::desc("Skip reconv BBs that are also divergent BBs"),
+  cl::init(true)
+);
+
+cl::opt<int> FSAMaxPri(
+  "fsa-max-pri", cl::Hidden,
+  cl::desc("Set max allowable pri for quantization pri pass"),
+  cl::init(8));
+
+cl::opt<int> FSABBNum(
+  "fsa-bb-num", cl::Hidden,
+  cl::desc("Set specific bb num for experiments"),
+  cl::init(-1)
+);
+
+cl::opt<int> FSAInstrCnt(
+  "fsa-instr-cnt", cl::Hidden,
+  cl::desc("Set specific InstrCnt for experiments"),
+  cl::init(-1)
+);
 
 extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeRISCVTarget() {
   RegisterTargetMachine<RISCVTargetMachine> X(getTheRISCV32Target());
@@ -170,7 +216,11 @@ extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeRISCVTarget() {
   initializeRISCVFSARemoveRedundantPriPass(*PR);
   initializeRISCVFSAInsertMinPCPriPass(*PR);
   initializeRISCVFSAPDomLevelBasedPriorityPass(*PR);
+  initializeRISCVFSAPostTopoPass(*PR);
   initializeRISCVFSAIPDOMLikePass(*PR);
+  initializeRISCVFSACleanUpPass(*PR);
+  initializeRISCVFSAPatchBarPass(*PR);
+  initializeRISCVFSAPriQuantPass(*PR);
 }
 
 static StringRef computeDataLayout(const Triple &TT,
@@ -642,10 +692,15 @@ void RISCVPassConfig::addPreEmitPass2() {
     addPass(createRISCVFSAIPDOMLikePass());
   }
 
-  bool EnableFSAFunctionPriority =
-      (!EnableFSAIPDOMLike && !EnableFSAICSFirst && EnableFSAMinPC) ||
-      (!EnableFSAIPDOMLike && !EnableFSAICSFirst &&
-       EnableFSAPDomLevelBasedPriority);
+  if (EnableFSAPostTopo) {
+    MCSubtargetInfo STI = *TM->getMCSubtargetInfo();
+    if (!STI.hasFeature(RISCV::FeatureVendorXFormosaPri))
+      report_fatal_error("FSA post order topo pass requires XFormosaPri extension");
+    addPass(createRISCVFSAPostTopoPass());
+  }
+
+  // New target did not support funct priority
+  bool EnableFSAFunctionPriority = false;
   if (EnableFSAFunctionPriority) {
     MCSubtargetInfo STI = *TM->getMCSubtargetInfo();
     if (!STI.hasFeature(RISCV::FeatureVendorXFormosaPri)) {
@@ -653,6 +708,15 @@ void RISCVPassConfig::addPreEmitPass2() {
                          "extension");
     }
     addPass(createRISCVFSAInsertFunctPriPass());
+  }
+
+  if (TM->getMCSubtargetInfo()->hasFeature(RISCV::FeatureVendorXFormosaPri)) {
+    if (FSAFusePriInst) {
+      addPass(createRISCVFSACleanUpPass());
+    }
+
+    addPass(createRISCVFSAPatchBarPass());
+    addPass(createRISCVFSAPriQuantPass());
   }
 }
 
@@ -684,6 +748,7 @@ void RISCVPassConfig::addPreRegAlloc() {
 
   if (TM->getOptLevel() != CodeGenOptLevel::None && EnableMachinePipeliner)
     addPass(&MachinePipelinerID);
+  addPass(createRISCVFSAReconvAnalysisPass());
 }
 
 void RISCVPassConfig::addFastRegAlloc() {

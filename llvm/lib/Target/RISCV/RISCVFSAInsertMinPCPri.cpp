@@ -1,8 +1,10 @@
 #include "RISCVInstrInfo.h"
 #include "RISCVRegisterInfo.h"
 #include "RISCVSubtarget.h"
+#include "llvm/CodeGen/MachineBasicBlock.h"
 #include "llvm/CodeGen/MachineDominators.h"
 #include "llvm/CodeGen/MachineFunction.h"
+#include "llvm/CodeGen/MachineInstr.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/Passes.h"
 #include "llvm/InitializePasses.h"
@@ -17,6 +19,7 @@ private:
   // Target Reg info
   const RISCVRegisterInfo *TRI;
   const RISCVInstrInfo *TII;
+  MachineBasicBlock::iterator blockBeginInsertPt(MachineBasicBlock &MBB);
 
 public:
   static char ID;
@@ -48,6 +51,11 @@ void RISCVFSAInsertMinPCPri::initialize(MachineFunction &MF) {
   TRI = ST.getRegisterInfo();
 }
 
+MachineBasicBlock::iterator
+RISCVFSAInsertMinPCPri::blockBeginInsertPt(MachineBasicBlock &MBB) {
+  return MBB.SkipPHIsLabelsAndDebug(MBB.begin());
+}
+
 bool RISCVFSAInsertMinPCPri::runOnMachineFunction(MachineFunction &MF) {
   LLVM_DEBUG(dbgs() << "Pass RISCVFSAInsertMinPCPri: " << MF.getName() << "\n");
   initialize(MF);
@@ -67,28 +75,28 @@ bool RISCVFSAInsertMinPCPri::runOnMachineFunction(MachineFunction &MF) {
 
   unsigned int NumMBBs = MF.getNumBlockIDs();
   LLVM_DEBUG(dbgs() << "Number of MBBs: " << NumMBBs << "\n");
-  if (NumMBBs > 63) {
-    report_fatal_error("Number of basic blocks exceeds 63, cannot insert "
-                       "fsa.pri.set instructions");
-  }
+
   for (MachineBasicBlock &MBB : MF) {
     // set the priority based on the occurrence of basic blocks, basic blocks
     // with lower PC value have higher priority
     // Insert fsa.pri.set <priority>
     unsigned BlockPriority = NumMBBs - MBB.getNumber();
-    LLVM_DEBUG(dbgs() << "    BB priority: " << BlockPriority << "\n");
-    BuildMI(MBB, MBB.begin(), MBB.findDebugLoc(MBB.begin()),
+    auto MBBBeginIt = blockBeginInsertPt(MBB);
+    BuildMI(MBB, MBBBeginIt, MBB.findDebugLoc(MBBBeginIt),
             TII->get(RISCV::FSA_PRI_SET))
         .addImm(BlockPriority);
     MadeChange = true;
 
     for (MachineInstr &MI : MBB) {
       // if MI is a call node, insert fsa.pri.set after it
-      if (MI.isCall()) {
+      if (MI.isCall() && MI != MBB.end() && !MI.isTerminator()) {
         MachineInstr &NextMI = *std::next(MI.getIterator());
+        if (NextMI == MBB.end() || NextMI.isTerminator())
+          break;
         BuildMI(MBB, NextMI.getIterator(), NextMI.getDebugLoc(),
                 TII->get(RISCV::FSA_PRI_SET))
             .addImm(BlockPriority);
+        MadeChange = true;
       }
     }
   }

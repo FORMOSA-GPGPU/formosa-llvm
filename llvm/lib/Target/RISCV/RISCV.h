@@ -111,6 +111,9 @@ void initializeRISCVVLOptimizerPass(PassRegistry &);
 FunctionPass *createRISCVFSADivergenceAnalysisPass();
 void initializeRISCVFSADivergenceAnalysisPass(PassRegistry &);
 
+FunctionPass *createRISCVFSAReconvAnalysisPass();
+void initializeRISCVFSAReconvAnalysisPass(PassRegistry &);
+
 FunctionPass *createRISCVFSAInsertFunctPriPass();
 void initializeRISCVFSAInsertFunctPriPass(PassRegistry &);
 
@@ -125,6 +128,18 @@ void initializeRISCVFSAPDomLevelBasedPriorityPass(PassRegistry &);
 
 FunctionPass *createRISCVFSAIPDOMLikePass();
 void initializeRISCVFSAIPDOMLikePass(PassRegistry &);
+
+FunctionPass *createRISCVFSAPostTopoPass();
+void initializeRISCVFSAPostTopoPass(PassRegistry &);
+
+FunctionPass *createRISCVFSACleanUpPass();
+void initializeRISCVFSACleanUpPass(PassRegistry &);
+
+FunctionPass *createRISCVFSAPatchBarPass();
+void initializeRISCVFSAPatchBarPass(PassRegistry &);
+
+FunctionPass *createRISCVFSAPriQuantPass();
+void initializeRISCVFSAPriQuantPass(PassRegistry &);
 } // namespace llvm
 
 #endif

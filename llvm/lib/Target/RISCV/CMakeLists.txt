@@ -39,6 +39,10 @@ add_llvm_target(RISCVCodeGen
   RISCVExpandPseudoInsts.cpp
   RISCVFrameLowering.cpp
   RISCVFSAPDomLevelBasedPriority.cpp
+  RISCVFSAPostTopo.cpp
+  RISCVFSACleanUp.cpp
+  RISCVFSAPatchBar.cpp
+  RISCVFSAPriQuant.cpp
   RISCVGatherScatterLowering.cpp
   RISCVIndirectBranchTracking.cpp
   RISCVInsertVSETVLI.cpp
@@ -66,6 +70,7 @@ add_llvm_target(RISCVCodeGen
   RISCVVLOptimizer.cpp
   RISCVZacasABIFix.cpp
   RISCVFSADivergenceAnalysis.cpp
+  RISCVFSAReconvAnalysis.cpp
   RISCVFSAInsertFunctPri.cpp
   RISCVFSARemoveRedundantPri.cpp
   RISCVFSAInsertMinPCPri.cpp

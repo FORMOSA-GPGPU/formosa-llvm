@@ -24,6 +24,7 @@ private:
   const RISCVInstrInfo *TII;
   MachinePostDominatorTree *PostDominatorTree;
   MachineLoopInfo *MLI;
+  MachineBasicBlock::iterator blockBeginInsertPt(MachineBasicBlock &MBB);
 
 public:
   static char ID;
@@ -67,6 +68,11 @@ void RISCVFSAIPDOMLike::initialize(MachineFunction &MF) {
   MLI = &getAnalysis<MachineLoopInfoWrapperPass>().getLI();
   TII = ST.getInstrInfo();
   TRI = ST.getRegisterInfo();
+}
+
+MachineBasicBlock::iterator
+RISCVFSAIPDOMLike::blockBeginInsertPt(MachineBasicBlock &MBB) {
+  return MBB.SkipPHIsLabelsAndDebug(MBB.begin());
 }
 
 bool RISCVFSAIPDOMLike::runOnMachineFunction(MachineFunction &MF) {
@@ -114,33 +120,31 @@ bool RISCVFSAIPDOMLike::runOnMachineFunction(MachineFunction &MF) {
     auto PDomLv = ImmPDomLevelSet.find(Level);
     int PriPairCnt = std::distance(ImmPDomLevelSet.begin(), PDomLv) + 1;
 
-    for (int i = 0; i < PriPairCnt; ++i) {
-      // Insert Lower at begining to wait other threads for reconverge
-      BuildMI(*MBB, MBB->begin(), MBB->findDebugLoc(MBB->begin()),
-              TII->get(RISCV::FSA_PRI_LOWER));
+    // Insert Lower at begining to wait other threads for reconverge
+    auto MBBBeginIt = blockBeginInsertPt(*MBB);
+    BuildMI(*MBB, MBBBeginIt, MBB->findDebugLoc(MBBBeginIt),
+      TII->get(RISCV::FSA_PRI_LOWER_N)).addImm(PriPairCnt);
 
-      auto MBBTermIt = MBB->getFirstTerminator();
-      // Insert Raise at end to resume higher priority
-      BuildMI(*MBB, MBBTermIt, MBB->findDebugLoc(MBBTermIt),
-              TII->get(RISCV::FSA_PRI_RAISE));
-    }
+    auto MBBTermIt = MBB->getFirstTerminator();
+
+    // Insert Raise at end to resume higher priority
+    BuildMI(*MBB, MBBTermIt, MBB->findDebugLoc(MBBTermIt),
+      TII->get(RISCV::FSA_PRI_RAISE_N)).addImm(PriPairCnt);
     MaxPriPairCnt = std::max(MaxPriPairCnt, PriPairCnt);
   }
   if (MadeChange) {
+    MaxPriPairCnt++;
     MachineBasicBlock &EntryMBB = *MF.begin();
     auto EntryTermIt = EntryMBB.getFirstTerminator();
-    for (int i = 0; i < MaxPriPairCnt; ++i) {
-      // At begining, raise every thread's pri
-      BuildMI(EntryMBB, EntryTermIt, EntryMBB.findDebugLoc(EntryTermIt),
-              TII->get(RISCV::FSA_PRI_RAISE));
-    }
+    // At begining, raise every thread's pri
+    BuildMI(EntryMBB, EntryTermIt, EntryMBB.findDebugLoc(EntryTermIt),
+      TII->get(RISCV::FSA_PRI_RAISE_N)).addImm(MaxPriPairCnt);
 
-    for (int i = 0; i < MaxPriPairCnt; ++i) {
-      // At every exit, lower pri to reset priority
-      for (MachineBasicBlock *MBB : ExitMBBSet) {
-        BuildMI(*MBB, MBB->begin(), MBB->findDebugLoc(MBB->begin()),
-                TII->get(RISCV::FSA_PRI_LOWER));
-      }
+    // At every exit, lower pri to reset priority
+    for (MachineBasicBlock *MBB : ExitMBBSet) {
+      auto MBBBeginIt = blockBeginInsertPt(*MBB);
+      BuildMI(*MBB, MBBBeginIt, MBB->findDebugLoc(MBBBeginIt),
+        TII->get(RISCV::FSA_PRI_LOWER_N)).addImm(MaxPriPairCnt);
     }
   }
   return MadeChange;

@@ -80,6 +80,16 @@ def FSA_BAR : XFormosaBar<0b001, "fsa.bar"> , Sched<[]>{
     let Inst{25-20} = wc;
 }
 
+
+def FSA_RECONV_MARKER  : Pseudo<(outs), (ins), []> {
+    let isPseudo = 1;
+    let mayLoad = 0;
+    let mayStore = 0;
+    let Size = 0;
+    let hasSideEffects = 1;
+    let isCodeGenOnly = 1;
+}
+
 def uimm3_timm : PatLeaf<(timm), [{
   return isUInt<3>(N->getZExtValue());
 }]>;
@@ -121,6 +131,7 @@ let Predicates = [HasVendorXFormosaGFX, HasStdExtZdinx, IsRV64] in {
     let mayLoad = 0;
     let mayStore = 0;
   }
+
 }
 
 // Pattern matching for FSA instructions

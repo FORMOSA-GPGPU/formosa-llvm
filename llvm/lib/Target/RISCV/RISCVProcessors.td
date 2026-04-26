@@ -137,7 +137,7 @@ def ROCKET : RISCVTuneProcessorModel<"rocket",
                                      RocketModel>;
 
 def FORMOSA_GPGPU : RISCVProcessorModel<"formosa-gpgpu",
-                                        RocketModel,
+                                        FormosaModel,
                                         [Feature64Bit,
                                          FeatureStdExtI,
                                          FeatureStdExtZicsr,

@@ -81,6 +81,9 @@ private:
   /// Does it probe the stack for a dynamic allocation?
   bool HasDynamicAllocation = false;
 
+  /// A set record reconvBB
+  DenseSet<const MachineBasicBlock *> ReconvBBs;
+
 public:
   RISCVMachineFunctionInfo(const Function &F, const RISCVSubtarget *STI);
 
@@ -165,6 +168,13 @@ public:
 
   bool hasDynamicAllocation() const { return HasDynamicAllocation; }
   void setDynamicAllocation() { HasDynamicAllocation = true; }
+  void resetRBBSet() { ReconvBBs.clear(); }
+  bool isReconv(const MachineBasicBlock *MBB) const {
+    return ReconvBBs.contains(MBB);
+  }
+  void markReconv(const MachineBasicBlock *MBB) {
+    ReconvBBs.insert(MBB);
+  }
 };
 
 } // end namespace llvm
