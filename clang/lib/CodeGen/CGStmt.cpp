@@ -65,7 +65,7 @@ void CodeGenFunction::EmitStopPoint(const Stmt *S) {
 
 void CodeGenFunction::CallRISCVFSAPriIntrinsic(llvm::Intrinsic::ID ID,
                                                unsigned pri) {
-  if (CGM.getCodeGenOpts().FSAICSFirst) {
+  if (CGM.getCodeGenOpts().FSAICSFirst && getTarget().getTriple().isRISCV()) {
     if (!getTarget().hasFeature("xformosapri")) {
       llvm::report_fatal_error("FSA ICS-First requires XFormosaPri extension");
     }
