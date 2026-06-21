@@ -8,6 +8,7 @@
 #include "llvm/CodeGen/MachineLoopInfo.h"
 #include "llvm/CodeGen/Passes.h"
 #include "llvm/InitializePasses.h"
+#include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/PostOrderIterator.h"
 
 #include <unordered_set>
@@ -15,6 +16,7 @@ using namespace llvm;
 #define DEBUG_TYPE "RISCVFSAPostTopo"
 extern cl::opt<bool> FSASkipLoopHeader;
 extern cl::opt<bool> FSASkipSmallBB;
+extern cl::opt<bool> FSASkipBackEdge;
 namespace {
 class RISCVFSAPostTopo : public MachineFunctionPass {
 private:
@@ -127,8 +129,34 @@ RISCVFSAPostTopo::collectReconvBlocks(
     MachineFunction &MF,
     const std::unordered_set<MachineBasicBlock *> &SkipMBBs) {
   std::unordered_set<MachineBasicBlock *> ReconvBBs;
+  DenseMap<MachineBasicBlock *, unsigned> RPOIndex;
+  if (FSASkipBackEdge) {
+    unsigned Index = 0;
+    for (MachineBasicBlock *MBB :
+         ReversePostOrderTraversal<MachineBasicBlock *>(&MF.front()))
+      RPOIndex[MBB] = Index++;
+  }
+
+  auto EffectivePredSize = [&](MachineBasicBlock &MBB) {
+    unsigned PredSize = MBB.pred_size();
+    if (!FSASkipBackEdge || PredSize <= 1)
+      return PredSize;
+
+    auto MBBIt = RPOIndex.find(&MBB);
+    if (MBBIt == RPOIndex.end())
+      return PredSize;
+
+    for (auto PredIt = MBB.pred_begin(), PredEnd = MBB.pred_end();
+         PredIt != PredEnd; ++PredIt) {
+      auto PredRPOIt = RPOIndex.find(*PredIt);
+      if (PredRPOIt != RPOIndex.end() && PredRPOIt->second > MBBIt->second)
+        --PredSize;
+    }
+    return PredSize;
+  };
+
   for (MachineBasicBlock &MBB : MF) {
-    if (MBB.pred_size() > 1 && !SkipMBBs.count(&MBB) &&
+    if (EffectivePredSize(MBB) > 1 && !SkipMBBs.count(&MBB) &&
         !shouldSkipInsertion(MBB))
       ReconvBBs.insert(&MBB);
   }
