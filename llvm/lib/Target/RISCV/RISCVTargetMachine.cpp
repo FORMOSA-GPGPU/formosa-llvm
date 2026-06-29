@@ -162,6 +162,18 @@ cl::opt<bool> FSASkipLoopHeader(
   cl::init(true)
 );
 
+cl::opt<bool> FSASkipSmallBB(
+  "fsa-skip-small-bb", cl::Hidden,
+  cl::desc("Skip insertion for small basic blocks in FSA post topo"),
+  cl::init(false)
+);
+
+cl::opt<bool> FSASkipBackEdge(
+  "fsa-skip-back-edge", cl::Hidden,
+  cl::desc("Exclude back edges when deciding FSA post topo reconv BBs"),
+  cl::init(true)
+);
+
 cl::opt<bool> FSASkipReconvDiverge(
   "fsa-skip-reconv-diverge", cl::Hidden,
   cl::desc("Skip reconv BBs that are also divergent BBs"),
