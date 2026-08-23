@@ -224,7 +224,6 @@ extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeRISCVTarget() {
   initializeRISCVMoveMergePass(*PR);
   initializeRISCVPushPopOptPass(*PR);
   initializeRISCVFSADivergenceAnalysisPass(*PR);
-  initializeRISCVFSAInsertFunctPriPass(*PR);
   initializeRISCVFSARemoveRedundantPriPass(*PR);
   initializeRISCVFSAInsertMinPCPriPass(*PR);
   initializeRISCVFSAPDomLevelBasedPriorityPass(*PR);
@@ -709,17 +708,6 @@ void RISCVPassConfig::addPreEmitPass2() {
     if (!STI.hasFeature(RISCV::FeatureVendorXFormosaPri))
       report_fatal_error("FSA post order topo pass requires XFormosaPri extension");
     addPass(createRISCVFSAPostTopoPass());
-  }
-
-  // New target did not support funct priority
-  bool EnableFSAFunctionPriority = false;
-  if (EnableFSAFunctionPriority) {
-    MCSubtargetInfo STI = *TM->getMCSubtargetInfo();
-    if (!STI.hasFeature(RISCV::FeatureVendorXFormosaPri)) {
-      report_fatal_error("FSA function priority insertion requires XFormosaPri "
-                         "extension");
-    }
-    addPass(createRISCVFSAInsertFunctPriPass());
   }
 
   if (TM->getMCSubtargetInfo()->hasFeature(RISCV::FeatureVendorXFormosaPri)) {

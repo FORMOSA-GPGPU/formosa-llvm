@@ -75,16 +75,6 @@ bool RISCVFSARemoveRedundantPri::runOnMachineFunction(MachineFunction &MF) {
             WorkList.push_back(&*NextMI);
           }
         }
-
-        if (Opcode == RISCV::FSA_PRI_RAISE_F) {
-          // Check if the next instruction is a FSA_PRI_LOWER_F
-          MachineBasicBlock::iterator NextMI = std::next(MI.getIterator());
-          if (NextMI != MBB.end() &&
-              NextMI->getOpcode() == RISCV::FSA_PRI_LOWER_F) {
-            WorkList.push_back(&MI);
-            WorkList.push_back(&*NextMI);
-          }
-        }
       }
     }
   }
