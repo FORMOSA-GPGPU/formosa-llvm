@@ -17,19 +17,6 @@ def FSA_PRI_LOWER : XFormosaPri<0b0100000, 0b000, "fsa.pri.lower.t">, Sched<[]>{
     let rd = 0;
 }
 
-// Instructions for FSA function priority control
-def FSA_PRI_RAISE_F : XFormosaPri<0b0000000, 0b010, "fsa.pri.raise.f">, Sched<[]>{
-    let rs1 = 0;
-    let rs2 = 0;
-    let rd = 0;
-}
-
-def FSA_PRI_LOWER_F : XFormosaPri<0b0100000, 0b010, "fsa.pri.lower.f">, Sched<[]>{
-    let rs1 = 0;
-    let rs2 = 0;
-    let rd = 0;
-}
-
 def FSA_PRI_RESET : XFormosaPri<0b0000001, 0b000, "fsa.pri.reset">, Sched<[]>{
     let rs1 = 0;
     let rs2 = 0;
