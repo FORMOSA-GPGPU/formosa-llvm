@@ -145,6 +145,7 @@
 #include "llvm/Transforms/Vectorize/LoopVectorize.h"
 #include "llvm/Transforms/Vectorize/SLPVectorizer.h"
 #include "llvm/Transforms/Vectorize/VectorCombine.h"
+#include "llvm/Transforms//Reconv/MarkReconvBB.h"
 
 using namespace llvm;
 
@@ -540,6 +541,7 @@ PassBuilder::buildO1FunctionSimplificationPipeline(OptimizationLevel Level,
   FPM.addPass(
       SimplifyCFGPass(SimplifyCFGOptions().convertSwitchRangeToICmp(true)));
   FPM.addPass(InstCombinePass());
+  FPM.addPass(MarkReconvBBPass());
   invokePeepholeEPCallbacks(FPM, Level);
 
   return FPM;
@@ -1597,7 +1599,7 @@ PassBuilder::buildModuleOptimizationPipeline(OptimizationLevel Level,
   // RelLookupTableConverterPass runs later in LTO post-link pipeline.
   if (!LTOPreLink)
     MPM.addPass(RelLookupTableConverterPass());
-
+  MPM.addPass(createModuleToFunctionPassAdaptor(MarkReconvBBPass()));
   return MPM;
 }
 
@@ -1636,6 +1638,7 @@ PassBuilder::buildPerModuleDefaultPipeline(OptimizationLevel Level,
 
   if (isLTOPreLink(Phase))
     addRequiredLTOPreLinkPasses(MPM);
+  MPM.addPass(createModuleToFunctionPassAdaptor(MarkReconvBBPass()));
   return MPM;
 }
 

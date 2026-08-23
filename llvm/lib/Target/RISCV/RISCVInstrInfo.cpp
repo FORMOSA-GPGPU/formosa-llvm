@@ -27,6 +27,7 @@
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/MachineTraceMetrics.h"
 #include "llvm/CodeGen/RegisterScavenging.h"
+#include "llvm/CodeGen/TargetInstrInfo.h"
 #include "llvm/CodeGen/StackMaps.h"
 #include "llvm/IR/DebugInfoMetadata.h"
 #include "llvm/IR/Module.h"
@@ -42,6 +43,8 @@ using namespace llvm;
 #define GET_INSTRINFO_CTOR_DTOR
 #define GET_INSTRINFO_NAMED_OPS
 #include "RISCVGenInstrInfo.inc"
+
+#define DEBUG_TYPE "riscv-instr-info"
 
 static cl::opt<bool> PreferWholeRegisterMove(
     "riscv-prefer-whole-register-move", cl::init(false), cl::Hidden,
@@ -4322,4 +4325,48 @@ RISCVInstrInfo::analyzeLoopForPipelining(MachineBasicBlock *LoopBB) const {
     return nullptr;
 
   return std::make_unique<RISCVPipelinerLoopInfo>(LHS, RHS, Cond);
+}
+
+InstructionUniformity
+RISCVInstrInfo::getInstructionUniformity(const MachineInstr &MI) const {
+  unsigned Opcode = MI.getOpcode();
+
+  // Read from the thread level CSRs are never uniform.
+  if (Opcode == RISCV::CSRRS) {
+    unsigned FSAThreadLevelCSRStart =
+        RISCVSysReg::lookupSysRegByName("xtid")->Encoding;
+    unsigned FSAThreadLevelCSREnd =
+        RISCVSysReg::lookupSysRegByName("xcllz")->Encoding;
+    unsigned CSRAddr = MI.getOperand(1).getImm();
+    if (CSRAddr >= FSAThreadLevelCSRStart && CSRAddr <= FSAThreadLevelCSREnd) {
+      LLVM_DEBUG(dbgs() << "Thread level CSR, returning NeverUniform\n");
+      return InstructionUniformity::NeverUniform;
+    }
+  }
+
+  if (MI.isCall()) {
+    const MachineOperand &CalleeOp = MI.getOperand(MI.getNumExplicitOperands() - 1);
+    StringRef Name;
+    if (CalleeOp.isGlobal()) {
+      if (const Function *Callee = dyn_cast<Function>(CalleeOp.getGlobal()))
+        Name = Callee->getName();
+    } else if (CalleeOp.isSymbol()) {
+      Name = CalleeOp.getSymbolName();
+    }
+
+    if (!Name.empty()) {
+      if (Name == "_Z13get_global_idj" ||
+          Name == "_Z12get_local_idj") {
+        return InstructionUniformity::NeverUniform;
+      }
+      if (Name == "_Z15get_global_sizej" ||
+          Name == "_Z15get_local_sizej"  ||
+          Name == "_Z12get_group_idj"    ||
+          Name == "_Z15get_num_groupsj") {
+        return InstructionUniformity::AlwaysUniform;
+      }
+    }
+  }
+
+  return InstructionUniformity::Default;
 }

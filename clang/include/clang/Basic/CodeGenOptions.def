@@ -468,6 +468,9 @@ CODEGENOPT(CtorDtorReturnThis, 1, 0)
 /// FIXME: Make DebugOptions its own top-level .def file.
 #include "DebugOptions.def"
 
+//Enable FSA ICS First scheme
+CODEGENOPT(FSAICSFirst, 1, 0)
+
 #undef CODEGENOPT
 #undef ENUM_CODEGENOPT
 #undef VALUE_CODEGENOPT

@@ -300,6 +300,9 @@ public:
   std::unique_ptr<TargetInstrInfo::PipelinerLoopInfo>
   analyzeLoopForPipelining(MachineBasicBlock *LoopBB) const override;
 
+  // Instruction uniformity
+  InstructionUniformity getInstructionUniformity(const MachineInstr &MI) const override final;
+
 protected:
   const RISCVSubtarget &STI;
 

@@ -137,7 +137,53 @@ def sm3p0 : RISCVBuiltin<"unsigned int(unsigned int)">;
 def sm3p1 : RISCVBuiltin<"unsigned int(unsigned int)">;
 } // Features = "zksh"
 
+//===----------------------------------------------------------------------===//
+// Xformosapri extension.
+//===----------------------------------------------------------------------===//
+let Features = "xformosapri,64bit" in {
+def fsa_pri_reset : RISCVBuiltin<"void()">;
+def fsa_pri_raise : RISCVBuiltin<"void()">;
+def fsa_pri_lower : RISCVBuiltin<"void()">;
+def fsa_pri_raise_n : RISCVBuiltin<"void(uint64_t)">;
+def fsa_pri_lower_n : RISCVBuiltin<"void(uint64_t)">;
+def fsa_pri_set   : RISCVBuiltin<"void(uint64_t)">;
+
+//===----------------------------------------------------------------------===//
+// Zicsr extension for Formosa architecture.
+//===----------------------------------------------------------------------===//
+multiclass RISCVFSACSRBuiltin {
+  def _x : RISCVBuiltin<"uint64_t()">;
+  def _y : RISCVBuiltin<"uint64_t()">;
+  def _z : RISCVBuiltin<"uint64_t()">;
+}
+
+defm fsa_global_size: RISCVFSACSRBuiltin;
+defm fsa_global_offset : RISCVFSACSRBuiltin;
+defm fsa_group_id : RISCVFSACSRBuiltin;
+defm fsa_local_id : RISCVFSACSRBuiltin;
+defm fsa_local_size : RISCVFSACSRBuiltin;
+def fsa_thread_id : RISCVBuiltin<"uint64_t()">;
+def fsa_thread_status : RISCVBuiltin<"uint64_t()">;
+def fsa_xdim : RISCVBuiltin<"uint64_t()">;
+} // Features = "xformosapri"
+
+//===----------------------------------------------------------------------===//
+// Xformosabar extension.
+//===----------------------------------------------------------------------===//
+let Features = "xformosabar,64bit" in {
+def fsa_barrier : RISCVBuiltin<"void(uint64_t, uint64_t)">;
+} // Features = "xformosabar"
+
 } // Attributes = [Const, NoThrow]
+
+//===----------------------------------------------------------------------===//
+// XformosaGFX extension.
+//===----------------------------------------------------------------------===//
+let Features = "xformosagfx,64bit" in {
+def fsa_rop : RISCVBuiltin<"void(uint32_t, uint32_t, uint32_t)">;
+def fsa_tex : RISCVBuiltin<"uint32_t(uint32_t, uint32_t, uint32_t, uint32_t)">;
+def fsa_swap : RISCVBuiltin<"uint64_t(uint32_t, uint32_t)">;
+}
 
 //===----------------------------------------------------------------------===//
 // Zihintntl extension.

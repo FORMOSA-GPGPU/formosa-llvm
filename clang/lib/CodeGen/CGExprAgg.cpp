@@ -29,6 +29,8 @@
 #include "llvm/IR/Instruction.h"
 #include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/Intrinsics.h"
+#include "llvm/IR/IntrinsicsRISCV.h"
+
 using namespace clang;
 using namespace CodeGen;
 
@@ -1279,6 +1281,8 @@ VisitAbstractConditionalOperator(const AbstractConditionalOperator *E) {
   // Bind the common expression if necessary.
   CodeGenFunction::OpaqueValueMapping binding(CGF, E);
 
+  CGF.Builder.CreateCall(CGF.CGM.getIntrinsic(llvm::Intrinsic::riscv_fsa_pri_raise));
+
   CodeGenFunction::ConditionalEvaluation eval(CGF);
   CGF.EmitBranchOnBoolExpr(E->getCond(), LHSBlock, RHSBlock,
                            CGF.getProfileCount(E));
@@ -1321,6 +1325,8 @@ VisitAbstractConditionalOperator(const AbstractConditionalOperator *E) {
                     E->getType());
 
   CGF.EmitBlock(ContBlock);
+
+  CGF.Builder.CreateCall(CGF.CGM.getIntrinsic(llvm::Intrinsic::riscv_fsa_pri_lower));
   if (llvm::EnableSingleByteCoverage)
     CGF.incrementProfileCounter(E);
 }

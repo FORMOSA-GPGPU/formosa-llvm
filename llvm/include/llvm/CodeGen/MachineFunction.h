@@ -197,7 +197,8 @@ public:
     FailsVerification,
     FailedRegAlloc,
     TracksDebugUserValues,
-    LastProperty = TracksDebugUserValues,
+    Divergence,
+    LastProperty = Divergence
   };
 
   bool hasProperty(Property P) const {

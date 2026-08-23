@@ -136,6 +136,20 @@ def ROCKET_RV64 : RISCVProcessorModel<"rocket-rv64",
 def ROCKET : RISCVTuneProcessorModel<"rocket",
                                      RocketModel>;
 
+def FORMOSA_GPGPU : RISCVProcessorModel<"formosa-gpgpu",
+                                        FormosaModel,
+                                        [Feature64Bit,
+                                         FeatureStdExtI,
+                                         FeatureStdExtZicsr,
+                                         FeatureStdExtZifencei,
+                                         FeatureStdExtM,
+                                         FeatureStdExtZdinx,
+                                         FeatureStdExtZicond,
+                                         FeatureStdExtZaamo,
+                                         FeatureVendorXFormosaPri,
+                                         FeatureVendorXFormosaBar,
+                                         FeatureVendorXFormosaGFX]>;
+
 defvar SiFive7TuneFeatures = [TuneSiFive7, TuneNoDefaultUnroll,
                               TuneShortForwardBranchOpt,
                               TunePostRAScheduler];

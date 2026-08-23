@@ -107,6 +107,33 @@ void initializeRISCVPreLegalizerCombinerPass(PassRegistry &);
 
 FunctionPass *createRISCVVLOptimizerPass();
 void initializeRISCVVLOptimizerPass(PassRegistry &);
+
+FunctionPass *createRISCVFSADivergenceAnalysisPass();
+void initializeRISCVFSADivergenceAnalysisPass(PassRegistry &);
+
+FunctionPass *createRISCVFSAReconvAnalysisPass();
+void initializeRISCVFSAReconvAnalysisPass(PassRegistry &);
+
+FunctionPass *createRISCVFSARemoveRedundantPriPass();
+void initializeRISCVFSARemoveRedundantPriPass(PassRegistry &);
+
+FunctionPass *createRISCVFSAInsertMinPCPriPass();
+void initializeRISCVFSAInsertMinPCPriPass(PassRegistry &);
+
+FunctionPass *createRISCVFSAPDomLevelBasedPriorityPass();
+void initializeRISCVFSAPDomLevelBasedPriorityPass(PassRegistry &);
+
+FunctionPass *createRISCVFSAIPDOMLikePass();
+void initializeRISCVFSAIPDOMLikePass(PassRegistry &);
+
+FunctionPass *createRISCVFSACleanUpPass();
+void initializeRISCVFSACleanUpPass(PassRegistry &);
+
+FunctionPass *createRISCVFSAPatchBarPass();
+void initializeRISCVFSAPatchBarPass(PassRegistry &);
+
+FunctionPass *createRISCVFSAPriQuantPass();
+void initializeRISCVFSAPriQuantPass(PassRegistry &);
 } // namespace llvm
 
 #endif
