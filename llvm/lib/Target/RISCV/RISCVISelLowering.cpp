@@ -645,7 +645,7 @@ RISCVTargetLowering::RISCVTargetLowering(const TargetMachine &TM,
     setOperationAction(ISD::PREFETCH, MVT::Other, Legal);
   }
 
-  if (Subtarget.hasStdExtA()) {
+  if (Subtarget.hasStdExtA() || Subtarget.hasStdExtZacas()) {
     setMaxAtomicSizeInBitsSupported(Subtarget.getXLen());
     if (Subtarget.hasStdExtZabha() && Subtarget.hasStdExtZacas())
       setMinCmpXchgSizeInBits(8);
@@ -1459,7 +1459,7 @@ RISCVTargetLowering::RISCVTargetLowering(const TargetMachine &TM,
     }
   }
 
-  if (Subtarget.hasStdExtA())
+  if (Subtarget.hasStdExtA() || Subtarget.hasStdExtZacas())
     setOperationAction(ISD::ATOMIC_LOAD_SUB, XLenVT, Expand);
 
   if (Subtarget.hasForcedAtomics()) {
@@ -21592,6 +21592,12 @@ RISCVTargetLowering::shouldExpandAtomicRMWInIR(AtomicRMWInst *AI) const {
     return AtomicExpansionKind::None;
 
   unsigned Size = AI->getType()->getPrimitiveSizeInBits();
+  // Without LR/SC, use a widened CAS loop for subword operations that lack
+  // native AMOs rather than the masked LR/SC intrinsics.
+  if (Subtarget.hasStdExtZacas() && !Subtarget.hasStdExtZalrsc() && Size < 32 &&
+      !Subtarget.hasStdExtZabha())
+    return AtomicExpansionKind::CmpXChg;
+
   if (AI->getOperation() == AtomicRMWInst::Nand) {
     if (Subtarget.hasStdExtZacas() &&
         (Size >= 32 || Subtarget.hasStdExtZabha()))
@@ -21724,6 +21730,10 @@ RISCVTargetLowering::shouldExpandAtomicCmpXchgInIR(
     return AtomicExpansionKind::None;
 
   unsigned Size = CI->getCompareOperand()->getType()->getPrimitiveSizeInBits();
+  // Let AtomicExpandPass widen subword CAS to AMOCAS.W when LR/SC is absent.
+  if (Subtarget.hasStdExtZacas() && !Subtarget.hasStdExtZalrsc())
+    return AtomicExpansionKind::None;
+
   if (!(Subtarget.hasStdExtZabha() && Subtarget.hasStdExtZacas()) &&
       (Size == 8 || Size == 16))
     return AtomicExpansionKind::MaskedIntrinsic;

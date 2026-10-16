@@ -2,6 +2,15 @@
 // RUN:   -o - | FileCheck %s
 // RUN: %clang --target=riscv64-unknown-linux-gnu -march=rv64i -E -dM %s \
 // RUN:   -o - | FileCheck %s
+// RUN: %clang --target=riscv64-unknown-elf -mcpu=formosa-gpgpu -E -dM %s \
+// RUN:   -o - | FileCheck %s --check-prefix=FORMOSA \
+// RUN:   --implicit-check-not="#define __riscv_a " \
+// RUN:   --implicit-check-not="#define __riscv_zalrsc "
+
+// FORMOSA-DAG: #define __riscv_zaamo 1000000
+// FORMOSA-DAG: #define __riscv_zacas 1000000
+// FORMOSA-DAG: #define __GCC_ATOMIC_INT_LOCK_FREE 2
+// FORMOSA-DAG: #define __GCC_ATOMIC_LLONG_LOCK_FREE 2
 
 // CHECK-NOT: __riscv_32e {{.*$}}
 // CHECK-NOT: __riscv_64e {{.*$}}
