@@ -21592,9 +21592,9 @@ RISCVTargetLowering::shouldExpandAtomicRMWInIR(AtomicRMWInst *AI) const {
     return AtomicExpansionKind::None;
 
   unsigned Size = AI->getType()->getPrimitiveSizeInBits();
-  // Without LR/SC, use a widened CAS loop for subword operations that lack
-  // native AMOs rather than the masked LR/SC intrinsics.
-  if (Subtarget.hasStdExtZacas() && !Subtarget.hasStdExtZalrsc() && Size < 32 &&
+  // Masked LR/SC lowering requires the full A extension. Otherwise, use a
+  // widened CAS loop for subword operations that lack native AMOs.
+  if (Subtarget.hasStdExtZacas() && !Subtarget.hasStdExtA() && Size < 32 &&
       !Subtarget.hasStdExtZabha())
     return AtomicExpansionKind::CmpXChg;
 
@@ -21730,8 +21730,9 @@ RISCVTargetLowering::shouldExpandAtomicCmpXchgInIR(
     return AtomicExpansionKind::None;
 
   unsigned Size = CI->getCompareOperand()->getType()->getPrimitiveSizeInBits();
-  // Let AtomicExpandPass widen subword CAS to AMOCAS.W when LR/SC is absent.
-  if (Subtarget.hasStdExtZacas() && !Subtarget.hasStdExtZalrsc())
+  // Masked LR/SC lowering requires the full A extension. Otherwise, let
+  // AtomicExpandPass widen subword CAS to AMOCAS.W.
+  if (Subtarget.hasStdExtZacas() && !Subtarget.hasStdExtA())
     return AtomicExpansionKind::None;
 
   if (!(Subtarget.hasStdExtZabha() && Subtarget.hasStdExtZacas()) &&
