@@ -158,7 +158,7 @@ class seq_cst_store<PatFrag base>
 }
 } // IsAtomic = 1
 
-// Atomic load/store are available under both +a and +force-atomics.
+// Atomic load/store are available under +a, +zacas and +force-atomics.
 // Fences will be inserted for atomic load/stores according to the logic in
 // RISCVTargetLowering::{emitLeadingFence,emitTrailingFence}.
 // The normal loads/stores are relaxed (unordered) loads/stores that don't have
@@ -183,7 +183,7 @@ let Predicates = [HasAtomicLdSt, IsRV64] in {
 
 multiclass AMOPat<string AtomicOp, string BaseInst, ValueType vt = XLenVT,
                   list<Predicate> ExtraPreds = []> {
-let Predicates = !listconcat([HasStdExtA, NotHasStdExtZtso], ExtraPreds) in {
+let Predicates = !listconcat([HasStdExtZaamo, NotHasStdExtZtso], ExtraPreds) in {
   def : PatGprGpr<!cast<PatFrag>(AtomicOp#"_monotonic"),
                   !cast<RVInst>(BaseInst), vt>;
   def : PatGprGpr<!cast<PatFrag>(AtomicOp#"_acquire"),
@@ -195,7 +195,7 @@ let Predicates = !listconcat([HasStdExtA, NotHasStdExtZtso], ExtraPreds) in {
   def : PatGprGpr<!cast<PatFrag>(AtomicOp#"_seq_cst"),
                   !cast<RVInst>(BaseInst#"_AQ_RL"), vt>;
 }
-let Predicates = !listconcat([HasStdExtA, HasStdExtZtso], ExtraPreds) in {
+let Predicates = !listconcat([HasStdExtZaamo, HasStdExtZtso], ExtraPreds) in {
   def : PatGprGpr<!cast<PatFrag>(AtomicOp#"_monotonic"),
                   !cast<RVInst>(BaseInst), vt>;
   def : PatGprGpr<!cast<PatFrag>(AtomicOp#"_acquire"),

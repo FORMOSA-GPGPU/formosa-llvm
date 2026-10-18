@@ -146,6 +146,7 @@ def FORMOSA_GPGPU : RISCVProcessorModel<"formosa-gpgpu",
                                          FeatureStdExtZdinx,
                                          FeatureStdExtZicond,
                                          FeatureStdExtZaamo,
+                                         FeatureStdExtZacas,
                                          FeatureVendorXFormosaPri,
                                          FeatureVendorXFormosaBar,
                                          FeatureVendorXFormosaGFX]>;

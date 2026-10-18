@@ -195,7 +195,7 @@ public:
   void setMaxAtomicWidth() override {
     MaxAtomicPromoteWidth = 128;
 
-    if (ISAInfo->hasExtension("a"))
+    if (ISAInfo->hasExtension("a") || ISAInfo->hasExtension("zacas"))
       MaxAtomicInlineWidth = 32;
   }
 };
@@ -230,7 +230,7 @@ public:
   void setMaxAtomicWidth() override {
     MaxAtomicPromoteWidth = 128;
 
-    if (ISAInfo->hasExtension("a"))
+    if (ISAInfo->hasExtension("a") || ISAInfo->hasExtension("zacas"))
       MaxAtomicInlineWidth = 64;
   }
 };
