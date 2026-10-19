@@ -104,7 +104,7 @@ static SmallVector<BasicBlock*, 8> divergeReconveBB(BasicBlock *X, DominatorTree
       SmallVector<BasicBlock*, 32> DivergentBranches;
       for (auto &BB : F) {
         if (auto *Br = dyn_cast<BranchInst>(BB.getTerminator())) {
-          // if (!Br->isConditional()) continue;
+          if (!Br->isConditional()) continue;
           if (UI.hasDivergentTerminator(BB)) {
             DivergentBranches.push_back(&BB);
             // llvm::dbgs() << "IRBB" << BB.getNumber() << " has diverged Branch\n";
