@@ -58,14 +58,11 @@ bool RISCVTTIImpl::isSourceOfDivergence(const Value *V) const {
       case Intrinsic::riscv_fsa_local_id_x:
       case Intrinsic::riscv_fsa_local_id_y:
       case Intrinsic::riscv_fsa_local_id_z:
-      case Intrinsic::riscv_fsa_thread_id:
-      case Intrinsic::riscv_fsa_thread_status:
+      case Intrinsic::riscv_fsa_local_linear_id:
+      case Intrinsic::riscv_fsa_lane_id:
         return true;
 
       // case Intrinsic::riscv_fsa_barrier:
-      case Intrinsic::riscv_fsa_global_size_x:
-      case Intrinsic::riscv_fsa_global_size_y:
-      case Intrinsic::riscv_fsa_global_size_z:
       case Intrinsic::riscv_fsa_global_offset_x:
       case Intrinsic::riscv_fsa_global_offset_y:
       case Intrinsic::riscv_fsa_global_offset_z:
@@ -75,7 +72,7 @@ bool RISCVTTIImpl::isSourceOfDivergence(const Value *V) const {
       case Intrinsic::riscv_fsa_local_size_x:
       case Intrinsic::riscv_fsa_local_size_y:
       case Intrinsic::riscv_fsa_local_size_z:
-      case Intrinsic::riscv_fsa_xdim:
+      case Intrinsic::riscv_fsa_sub_group_size:
       case Intrinsic::riscv_fsa_pri_lower:
       case Intrinsic::riscv_fsa_pri_lower_n:
       case Intrinsic::riscv_fsa_pri_raise:
@@ -97,9 +94,6 @@ bool RISCVTTIImpl::isAlwaysUniform(const Value *V) const {
   if (auto *II = dyn_cast<IntrinsicInst>(CB)) {
     switch (II->getIntrinsicID()) {
       // case Intrinsic::riscv_fsa_barrier:
-      case Intrinsic::riscv_fsa_global_size_x:
-      case Intrinsic::riscv_fsa_global_size_y:
-      case Intrinsic::riscv_fsa_global_size_z:
       case Intrinsic::riscv_fsa_global_offset_x:
       case Intrinsic::riscv_fsa_global_offset_y:
       case Intrinsic::riscv_fsa_global_offset_z:
@@ -109,7 +103,7 @@ bool RISCVTTIImpl::isAlwaysUniform(const Value *V) const {
       case Intrinsic::riscv_fsa_local_size_x:
       case Intrinsic::riscv_fsa_local_size_y:
       case Intrinsic::riscv_fsa_local_size_z:
-      case Intrinsic::riscv_fsa_xdim:
+      case Intrinsic::riscv_fsa_sub_group_size:
       case Intrinsic::riscv_fsa_pri_lower:
       case Intrinsic::riscv_fsa_pri_lower_n:
       case Intrinsic::riscv_fsa_pri_raise:

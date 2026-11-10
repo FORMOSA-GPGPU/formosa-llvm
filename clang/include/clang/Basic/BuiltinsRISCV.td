@@ -147,25 +147,31 @@ def fsa_pri_lower : RISCVBuiltin<"void()">;
 def fsa_pri_raise_n : RISCVBuiltin<"void(uint64_t)">;
 def fsa_pri_lower_n : RISCVBuiltin<"void(uint64_t)">;
 def fsa_pri_set   : RISCVBuiltin<"void(uint64_t)">;
+} // Features = "xformosapri"
 
 //===----------------------------------------------------------------------===//
-// Zicsr extension for Formosa architecture.
+// Formosa work-item CSRs.
 //===----------------------------------------------------------------------===//
-multiclass RISCVFSACSRBuiltin {
+let Features = "xformosa,64bit" in {
+multiclass RISCVFSAWorkItemBuiltinXYZ {
   def _x : RISCVBuiltin<"uint64_t()">;
   def _y : RISCVBuiltin<"uint64_t()">;
   def _z : RISCVBuiltin<"uint64_t()">;
 }
 
-defm fsa_global_size: RISCVFSACSRBuiltin;
-defm fsa_global_offset : RISCVFSACSRBuiltin;
-defm fsa_group_id : RISCVFSACSRBuiltin;
-defm fsa_local_id : RISCVFSACSRBuiltin;
-defm fsa_local_size : RISCVFSACSRBuiltin;
-def fsa_thread_id : RISCVBuiltin<"uint64_t()">;
-def fsa_thread_status : RISCVBuiltin<"uint64_t()">;
-def fsa_xdim : RISCVBuiltin<"uint64_t()">;
-} // Features = "xformosapri"
+// per lane
+defm fsa_local_id : RISCVFSAWorkItemBuiltinXYZ;
+def fsa_local_linear_id : RISCVBuiltin<"uint64_t()">;
+def fsa_lane_id : RISCVBuiltin<"uint64_t()">;
+
+// per warp
+def fsa_sub_group_size : RISCVBuiltin<"uint64_t()">;
+
+// per work-group
+defm fsa_group_id : RISCVFSAWorkItemBuiltinXYZ;
+defm fsa_local_size : RISCVFSAWorkItemBuiltinXYZ;
+defm fsa_global_offset : RISCVFSAWorkItemBuiltinXYZ;
+} // Features = "xformosa,64bit"
 
 //===----------------------------------------------------------------------===//
 // Xformosabar extension.

@@ -68,6 +68,44 @@ def FSA_BAR : XFormosaBar<0b001, "fsa.bar"> , Sched<[]>{
 }
 
 
+//===----------------------------------------------------------------------===//
+// Work-item CSR reads
+//===----------------------------------------------------------------------===//
+
+// Kernel code never writes these CSRs, so the reads can be merged, hoisted and
+// rematerialized.
+let Predicates = [HasVendorXFormosa, IsRV64], mayLoad = 0, mayStore = 0,
+    isReMaterializable = 1, isAsCheapAsAMove = 1 in
+class FSAReadWorkItemCSR<Intrinsic intr, SysReg SR>
+    : ReadSysReg<SR, []>, Sched<[WriteCSR]> {
+  let Pattern = [(set GPR:$rd, (intr))];
+}
+
+multiclass FSAReadWorkItemCSRXYZ<string name, string csr> {
+  foreach dim = ["X", "Y", "Z"] in
+    def _#dim
+        : FSAReadWorkItemCSR<
+              !cast<Intrinsic>("int_riscv_fsa_" # name # "_" # !tolower(dim)),
+              !cast<SysReg>("FSA_" # csr # "_" # dim)>;
+}
+
+// Per lane (divergent).
+defm PseudoFSA_LOCAL_ID : FSAReadWorkItemCSRXYZ<"local_id", "XLOCALID">;
+// mhartid is the local linear id.
+def PseudoFSA_LOCAL_LINEAR_ID
+    : FSAReadWorkItemCSR<int_riscv_fsa_local_linear_id, SysRegMHARTID>;
+def PseudoFSA_LANE_ID : FSAReadWorkItemCSR<int_riscv_fsa_lane_id, FSA_XLANEID>;
+
+// Per warp (uniform).
+def PseudoFSA_SUB_GROUP_SIZE
+    : FSAReadWorkItemCSR<int_riscv_fsa_sub_group_size, FSA_XSGSIZE>;
+
+// Per work-group (uniform).
+defm PseudoFSA_GROUP_ID : FSAReadWorkItemCSRXYZ<"group_id", "XGROUPID">;
+defm PseudoFSA_LOCAL_SIZE : FSAReadWorkItemCSRXYZ<"local_size", "XLOCALSIZE">;
+defm PseudoFSA_GLOBAL_OFFSET
+    : FSAReadWorkItemCSRXYZ<"global_offset", "XGLOBALOFFSET">;
+
 def FSA_RECONV_MARKER  : Pseudo<(outs), (ins), []> {
     let isPseudo = 1;
     let mayLoad = 0;

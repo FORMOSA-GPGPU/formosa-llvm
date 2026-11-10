@@ -46,32 +46,29 @@ let TargetPrefix = "riscv" in {
               [IntrNoMem, IntrHasSideEffects, IntrConvergent,
                IntrWillReturn, IntrNoCallback, IntrNoFree]>;
 
-  class RISCVXFormosaCSRIntrinsics :
-    Intrinsic<[llvm_i64_ty], [], [IntrNoMem, IntrNoFree]>;
+  class RISCVXFormosaWorkItemIntrinsic<string name>
+    : DefaultAttrsIntrinsic<[llvm_i64_ty], [],
+                             [NoUndef<RetIndex>, IntrNoMem, IntrSpeculatable]>,
+      ClangBuiltin<!strconcat("__builtin_riscv_fsa_", name)>;
 
-  multiclass RISCVXFormosaCSRIntrinsicsNamed<string IntrinsicName> {
-    def _x : ClangBuiltin<!strconcat("__builtin_riscv_fsa_", IntrinsicName, "_x")>,
-             RISCVXFormosaCSRIntrinsics;
-    def _y : ClangBuiltin<!strconcat("__builtin_riscv_fsa_", IntrinsicName, "_y")>,
-             RISCVXFormosaCSRIntrinsics;
-    def _z : ClangBuiltin<!strconcat("__builtin_riscv_fsa_", IntrinsicName, "_z")>,
-             RISCVXFormosaCSRIntrinsics;
+  multiclass RISCVXFormosaWorkItemIntrinsicXYZ<string name> {
+    def _x : RISCVXFormosaWorkItemIntrinsic<!strconcat(name, "_x")>;
+    def _y : RISCVXFormosaWorkItemIntrinsic<!strconcat(name, "_y")>;
+    def _z : RISCVXFormosaWorkItemIntrinsic<!strconcat(name, "_z")>;
   }
 
-  defm int_riscv_fsa_local_id : RISCVXFormosaCSRIntrinsicsNamed<"local_id">;
-  defm int_riscv_fsa_local_size : RISCVXFormosaCSRIntrinsicsNamed<"local_size">;
-  defm int_riscv_fsa_global_size : RISCVXFormosaCSRIntrinsicsNamed<"global_size">;
-  defm int_riscv_fsa_global_offset : RISCVXFormosaCSRIntrinsicsNamed<"global_offset">;
-  defm int_riscv_fsa_group_id : RISCVXFormosaCSRIntrinsicsNamed<"group_id">;
+  // per lane
+  defm int_riscv_fsa_local_id : RISCVXFormosaWorkItemIntrinsicXYZ<"local_id">;
+  def  int_riscv_fsa_local_linear_id : RISCVXFormosaWorkItemIntrinsic<"local_linear_id">;
+  def  int_riscv_fsa_lane_id : RISCVXFormosaWorkItemIntrinsic<"lane_id">;
 
-  def  int_riscv_fsa_thread_id : ClangBuiltin<"__builtin_riscv_fsa_thread_id">,
-    Intrinsic<[llvm_i64_ty], [], [IntrNoMem, IntrNoFree]>;
+  // per warp
+  def  int_riscv_fsa_sub_group_size : RISCVXFormosaWorkItemIntrinsic<"sub_group_size">;
 
-  def  int_riscv_fsa_thread_status : ClangBuiltin<"__builtin_riscv_fsa_thread_status">,
-    Intrinsic<[llvm_i64_ty], [], [IntrNoMem, IntrNoFree]>;
-
-  def int_riscv_fsa_xdim : ClangBuiltin<"__builtin_riscv_fsa_xdim">,
-    Intrinsic<[llvm_i64_ty], [], [IntrNoMem, IntrNoFree]>;
+  // per work-group
+  defm int_riscv_fsa_group_id : RISCVXFormosaWorkItemIntrinsicXYZ<"group_id">;
+  defm int_riscv_fsa_local_size : RISCVXFormosaWorkItemIntrinsicXYZ<"local_size">;
+  defm int_riscv_fsa_global_offset : RISCVXFormosaWorkItemIntrinsicXYZ<"global_offset">;
 
   def int_riscv_fsa_rop : ClangBuiltin<"__builtin_riscv_fsa_rop">, 
     Intrinsic<[], [llvm_i64_ty, llvm_i64_ty, llvm_i64_ty],

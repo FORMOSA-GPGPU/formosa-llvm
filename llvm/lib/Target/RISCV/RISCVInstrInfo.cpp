@@ -4331,17 +4331,58 @@ InstructionUniformity
 RISCVInstrInfo::getInstructionUniformity(const MachineInstr &MI) const {
   unsigned Opcode = MI.getOpcode();
 
-  // Read from the thread level CSRs are never uniform.
-  if (Opcode == RISCV::CSRRS) {
-    unsigned FSAThreadLevelCSRStart =
-        RISCVSysReg::lookupSysRegByName("xtid")->Encoding;
-    unsigned FSAThreadLevelCSREnd =
-        RISCVSysReg::lookupSysRegByName("xcllz")->Encoding;
-    unsigned CSRAddr = MI.getOperand(1).getImm();
-    if (CSRAddr >= FSAThreadLevelCSRStart && CSRAddr <= FSAThreadLevelCSREnd) {
+  switch (Opcode) {
+  // Work-item CSR reads: per-lane values are divergent, per-warp and
+  // per-work-group values are the same for every lane of a warp.
+  case RISCV::PseudoFSA_LOCAL_ID_X:
+  case RISCV::PseudoFSA_LOCAL_ID_Y:
+  case RISCV::PseudoFSA_LOCAL_ID_Z:
+  case RISCV::PseudoFSA_LOCAL_LINEAR_ID:
+  case RISCV::PseudoFSA_LANE_ID:
+  // Each lane has its own floating-point CSRs.
+  case RISCV::ReadFRM:
+  case RISCV::SwapFRMImm:
+  case RISCV::ReadFFLAGS:
+    return InstructionUniformity::NeverUniform;
+  case RISCV::PseudoFSA_SUB_GROUP_SIZE:
+  case RISCV::PseudoFSA_GROUP_ID_X:
+  case RISCV::PseudoFSA_GROUP_ID_Y:
+  case RISCV::PseudoFSA_GROUP_ID_Z:
+  case RISCV::PseudoFSA_LOCAL_SIZE_X:
+  case RISCV::PseudoFSA_LOCAL_SIZE_Y:
+  case RISCV::PseudoFSA_LOCAL_SIZE_Z:
+  case RISCV::PseudoFSA_GLOBAL_OFFSET_X:
+  case RISCV::PseudoFSA_GLOBAL_OFFSET_Y:
+  case RISCV::PseudoFSA_GLOBAL_OFFSET_Z:
+    return InstructionUniformity::AlwaysUniform;
+  default:
+    break;
+  }
+
+  // The old value of a per-lane CSR is never uniform: the per-thread CSRs
+  // (read-only 0xFD0-0xFDF, read/write 0xBD0-0xBDF), mhartid, and the
+  // floating-point CSRs.
+  switch (Opcode) {
+  case RISCV::CSRRW:
+  case RISCV::CSRRS:
+  case RISCV::CSRRC:
+  case RISCV::CSRRWI:
+  case RISCV::CSRRSI:
+  case RISCV::CSRRCI: {
+    if (!MI.getOperand(1).isImm())
+      break;
+    uint64_t CSRAddr = MI.getOperand(1).getImm();
+    if ((CSRAddr >= 0xFD0 && CSRAddr <= 0xFDF) ||
+        (CSRAddr >= 0xBD0 && CSRAddr <= 0xBDF) ||
+        CSRAddr == RISCVSysReg::mhartid || CSRAddr == RISCVSysReg::fflags ||
+        CSRAddr == RISCVSysReg::frm || CSRAddr == RISCVSysReg::fcsr) {
       LLVM_DEBUG(dbgs() << "Thread level CSR, returning NeverUniform\n");
       return InstructionUniformity::NeverUniform;
     }
+    break;
+  }
+  default:
+    break;
   }
 
   if (MI.isCall()) {
