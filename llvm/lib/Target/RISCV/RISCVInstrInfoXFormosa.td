@@ -52,8 +52,11 @@ def FSA_PRI_SET : XFormosaPriI<0b100, "fsa.pri.set.t">, Sched<[]>{
     let Inst{25-20} = imm;  // the priority value to set
 }
 
+// fsa.bar orders memory between warps: mayLoad/mayStore keep MI passes
+// (e.g. MachineSink, which ignores hasSideEffects) from moving memory ops
+// across it.
 let Predicates = [HasVendorXFormosaBar, IsRV64],
-    hasSideEffects = 1, mayLoad = 0, mayStore = 0, isConvergent = 1 in
+    hasSideEffects = 1, mayLoad = 1, mayStore = 1, isConvergent = 1 in
 class XFormosaBar<bits<3> funct3, string opcodestr> :
     RVInstI<funct3, OPC_CUSTOM_1, (outs),
             (ins uimm6:$bid, uimm6:$wc), opcodestr, "$bid, $wc">;

@@ -41,9 +41,11 @@ let TargetPrefix = "riscv" in {
               [IntrNoMem, IntrHasSideEffects, IntrWillReturn, IntrNoCallback,
                IntrNoFree]>;
 
+  // A workgroup barrier orders memory accesses of the warps it synchronizes,
+  // so it must be modeled as reading and writing memory (no IntrNoMem).
   def int_riscv_fsa_barrier : ClangBuiltin<"__builtin_riscv_fsa_barrier">,
     Intrinsic<[], [llvm_i64_ty, llvm_i64_ty],
-              [IntrNoMem, IntrHasSideEffects, IntrConvergent,
+              [IntrHasSideEffects, IntrConvergent,
                IntrWillReturn, IntrNoCallback, IntrNoFree]>;
 
   class RISCVXFormosaCSRIntrinsics :
