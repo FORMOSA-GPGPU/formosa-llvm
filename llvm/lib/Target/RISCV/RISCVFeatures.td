@@ -1256,23 +1256,21 @@ def HasVendorXwchc
 // Formosa Extensions
 
 def FeatureVendorXFormosaPri
-    : RISCVExtension<1, 0,
-                     "'XFormosaPri' (Formosa Priority Instructions)">;
+    : RISCVExtension<1, 0, "Formosa Priority Instructions">;
 def HasVendorXFormosaPri
     : Predicate<"Subtarget->hasVendorXFormosaPri()">,
       AssemblerPredicate<(all_of FeatureVendorXFormosaPri),
                          "'XFormosaPri' (Formosa Priority Instructions)">;
 
 def FeatureVendorXFormosaBar
-    : RISCVExtension<1, 0,
-                     "'XFormosaBar' (Formosa Barrier Instructions)">;
+    : RISCVExtension<1, 0, "Formosa Barrier Instructions">;
 def HasVendorXFormosaBar
     : Predicate<"Subtarget->hasVendorXFormosaBar()">,
       AssemblerPredicate<(all_of FeatureVendorXFormosaBar),
                          "'XFormosaBar' (Formosa Barrier Instructions)">;
 
 def FeatureVendorXFormosaGFX
-    : RISCVExtension<1, 0, "'XFormosaGFX' (Formosa Graphics)">;
+    : RISCVExtension<1, 0, "Formosa Graphics">;
 def HasVendorXFormosaGFX
     : Predicate<"Subtarget->hasVendorXFormosaGFX()">,
       AssemblerPredicate<(all_of FeatureVendorXFormosaGFX),
@@ -1280,16 +1278,15 @@ def HasVendorXFormosaGFX
 
 def FeatureVendorXFormosa
     : RISCVExtension<1, 0,
-                     "'XFormosa' (Formosa PRI + BAR)",
-                     [
-                        FeatureVendorXFormosaPri,
-                        FeatureVendorXFormosaBar,
-                        FeatureVendorXFormosaGFX]>;
+                     "Formosa work-item CSRs, PRI, BAR and GFX",
+                     [FeatureVendorXFormosaPri,
+                      FeatureVendorXFormosaBar,
+                      FeatureVendorXFormosaGFX]>;
 
 def HasVendorXFormosa
     : Predicate<"Subtarget->hasVendorXFormosa()">,
       AssemblerPredicate<(all_of FeatureVendorXFormosa),
-                         "'XFormosa' (Formosa PRI + BAR)">;
+                         "'XFormosa' (Formosa work-item CSRs, PRI, BAR and GFX)">;
 
 // Qualcomm Extension(s)
 

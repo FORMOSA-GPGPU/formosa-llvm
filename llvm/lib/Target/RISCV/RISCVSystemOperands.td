@@ -217,7 +217,7 @@ def : SysReg<"vsatp", 0x280>;
 def : SysReg<"mvendorid", 0xF11>;
 def : SysReg<"marchid", 0xF12>;
 def : SysReg<"mimpid", 0xF13>;
-def : SysReg<"mhartid", 0xF14>;
+def SysRegMHARTID : SysReg<"mhartid", 0xF14>;
 def : SysReg<"mconfigptr", 0xF15>;
 
 //===----------------------------------------------------------------------===//
@@ -494,3 +494,35 @@ def FSA_XLANEID   : SysReg<"xlaneid", 0xFD0>;
 // Number of lanes (hardware threads) supported per core.
 // Represents the SIMD width of the core.
 def FSA_XLANES    : SysReg<"xlanes", 0xFE0>;
+
+//===----------------------------------------------------------------------===//
+// Formosa Work-Item CSRs (Read/Write)
+//===----------------------------------------------------------------------===//
+
+// The runtime writes them before a kernel starts; kernel code only reads them.
+let FeaturesRequired = [{ {RISCV::FeatureVendorXFormosa} }] in {
+
+// Per-warp: number of valid work-items in this warp (sub-group size).
+def FSA_XSGSIZE : SysReg<"xsgsize", 0xBC0>;
+
+// Per-thread: local ID of the work-item within its work-group.
+def FSA_XLOCALID_X : SysReg<"xlocalid_x", 0xBD0>;
+def FSA_XLOCALID_Y : SysReg<"xlocalid_y", 0xBD1>;
+def FSA_XLOCALID_Z : SysReg<"xlocalid_z", 0xBD2>;
+
+// Per-work-group: work-group ID.
+def FSA_XGROUPID_X : SysReg<"xgroupid_x", 0xBF0>;
+def FSA_XGROUPID_Y : SysReg<"xgroupid_y", 0xBF1>;
+def FSA_XGROUPID_Z : SysReg<"xgroupid_z", 0xBF2>;
+
+// Per-work-group: work-group size.
+def FSA_XLOCALSIZE_X : SysReg<"xlocalsize_x", 0xBF4>;
+def FSA_XLOCALSIZE_Y : SysReg<"xlocalsize_y", 0xBF5>;
+def FSA_XLOCALSIZE_Z : SysReg<"xlocalsize_z", 0xBF6>;
+
+// Per-work-group: global offset of the NDRange.
+def FSA_XGLOBALOFFSET_X : SysReg<"xglobaloffset_x", 0xBF8>;
+def FSA_XGLOBALOFFSET_Y : SysReg<"xglobaloffset_y", 0xBF9>;
+def FSA_XGLOBALOFFSET_Z : SysReg<"xglobaloffset_z", 0xBFA>;
+
+} // FeaturesRequired = [{ {RISCV::FeatureVendorXFormosa} }]
