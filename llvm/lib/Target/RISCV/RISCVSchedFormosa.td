@@ -29,13 +29,9 @@ def FormosaModel : SchedMachineModel {
 
 // BufferSize : refer to kInstrQueue
 let BufferSize = 2 in {
-    def FormosaUnitIALU       : ProcResource<1>; // Int ALU(w/o Mult and Div)
-    def FormosaUnitIMul       : ProcResource<1>; // Int Mult Unit
-    def FormosaUnitIDIV       : ProcResource<1>; // Int Div Unit
-    def FormosaUnitFPALU      : ProcResource<1>; // FP ALU, currently not modeling in simtix
-    def FormosaUnitFPDivSqrt  : ProcResource<1>; // FP DivSqrt Unit, currently not modeling in simtix
-    def FormosaMisc           : ProcResource<1>;
-    // def FormosaUnitB          : ProcResource<1>; // Branch, currently unused
+    def FormosaUnitIALU       : ProcResource<1>; // ALU: int, branch/jump, CSR
+    def FormosaUnitIMul       : ProcResource<1>; // MDU: mul, div, rem
+    def FormosaUnitFPALU      : ProcResource<1>; // FPU: every FP op incl. div/sqrt
 }
 
 // possible more BufferSize ?
@@ -48,7 +44,7 @@ let BufferSize = 8 in {
 let SchedModel = FormosaModel in {
 
 // Branching is dispatched to IALU
-let Latency = 1 in {
+let Latency = 14 in {
 def : WriteRes<WriteJmp, [FormosaUnitIALU]>;
 def : WriteRes<WriteJal, [FormosaUnitIALU]>;
 def : WriteRes<WriteJalr, [FormosaUnitIALU]>;
@@ -62,18 +58,14 @@ def : WriteRes<WriteShiftReg32, [FormosaUnitIALU]>;
 def : WriteRes<WriteShiftReg, [FormosaUnitIALU]>;
 }
 
-// Integer multiplication
-let Latency = 2 in {
+// Integer MUL/DIV/REM
+let Latency = 18 in {
 def : WriteRes<WriteIMul, [FormosaUnitIMul]>;
 def : WriteRes<WriteIMul32, [FormosaUnitIMul]>;
-}
-
-// Integer DIV/REM
-let Latency = 8 in {
-def : WriteRes<WriteIDiv32, [FormosaUnitIDIV]>;
-def : WriteRes<WriteIDiv, [FormosaUnitIDIV]>;
-def : WriteRes<WriteIRem32, [FormosaUnitIDIV]>;
-def : WriteRes<WriteIRem, [FormosaUnitIDIV]>;
+def : WriteRes<WriteIDiv32, [FormosaUnitIMul]>;
+def : WriteRes<WriteIDiv, [FormosaUnitIMul]>;
+def : WriteRes<WriteIRem32, [FormosaUnitIMul]>;
+def : WriteRes<WriteIRem, [FormosaUnitIMul]>;
 }
 
 // Memory
@@ -86,18 +78,19 @@ def : WriteRes<WriteFST32, [FormosaUnitMem]>;
 def : WriteRes<WriteFST64, [FormosaUnitMem]>;
 }
 
-let Latency = 4 in {
+let Latency = 15 in {
 def : WriteRes<WriteLDB, [FormosaUnitMem]>;
 def : WriteRes<WriteLDH, [FormosaUnitMem]>;
 }
 
-let Latency = 4 in {
+let Latency = 15 in {
 def : WriteRes<WriteLDW, [FormosaUnitMem]>;
 def : WriteRes<WriteLDD, [FormosaUnitMem]>;
 def : WriteRes<WriteFLD32, [FormosaUnitMem]>;
 def : WriteRes<WriteFLD64, [FormosaUnitMem]>;
 
-// Atomic memory
+// Atomic memory: 15 = fastest L1D-hit load-to-use (gemm trace). AMOs bypass L1
+// and were not measured, so this is a lower bound for them.
 def : WriteRes<WriteAtomicW, [FormosaUnitMem]>;
 def : WriteRes<WriteAtomicD, [FormosaUnitMem]>;
 
@@ -109,24 +102,14 @@ def : WriteRes<WriteAtomicSTW, [FormosaUnitMem]>;
 def : WriteRes<WriteAtomicSTD, [FormosaUnitMem]>;
 
 
-// Currently We don't model fp latency in simtix!!!
-// Following RocketModel's config
-// Single precision.
-let Latency = 4 in {
+// FP: every op goes to the FPU (15 + 10 cycles, fully pipelined)
+let Latency = 25 in {
 def : WriteRes<WriteFAdd32, [FormosaUnitFPALU]>;
 def : WriteRes<WriteFSGNJ32, [FormosaUnitFPALU]>;
 def : WriteRes<WriteFMinMax32, [FormosaUnitFPALU]>;
-}
-
-// Double precision
-let Latency = 6 in {
 def : WriteRes<WriteFAdd64, [FormosaUnitFPALU]>;
 def : WriteRes<WriteFSGNJ64, [FormosaUnitFPALU]>;
 def : WriteRes<WriteFMinMax64, [FormosaUnitFPALU]>;
-}
-
-// Conversions
-let Latency = 2 in {
 def : WriteRes<WriteFCvtI32ToF32, [FormosaUnitFPALU]>;
 def : WriteRes<WriteFCvtI32ToF64, [FormosaUnitFPALU]>;
 def : WriteRes<WriteFCvtI64ToF32, [FormosaUnitFPALU]>;
@@ -137,7 +120,6 @@ def : WriteRes<WriteFCvtF64ToI32, [FormosaUnitFPALU]>;
 def : WriteRes<WriteFCvtF64ToI64, [FormosaUnitFPALU]>;
 def : WriteRes<WriteFCvtF32ToF64, [FormosaUnitFPALU]>;
 def : WriteRes<WriteFCvtF64ToF32, [FormosaUnitFPALU]>;
-
 def : WriteRes<WriteFClass32, [FormosaUnitFPALU]>;
 def : WriteRes<WriteFClass64, [FormosaUnitFPALU]>;
 def : WriteRes<WriteFCmp32, [FormosaUnitFPALU]>;
@@ -146,37 +128,23 @@ def : WriteRes<WriteFMovF32ToI32, [FormosaUnitFPALU]>;
 def : WriteRes<WriteFMovI32ToF32, [FormosaUnitFPALU]>;
 def : WriteRes<WriteFMovF64ToI64, [FormosaUnitFPALU]>;
 def : WriteRes<WriteFMovI64ToF64, [FormosaUnitFPALU]>;
-}
-
-// FP multiplication
-let Latency = 5 in {
 def : WriteRes<WriteFMul32, [FormosaUnitFPALU]>;
 def : WriteRes<WriteFMA32, [FormosaUnitFPALU]>;
-}
-
-let Latency = 7 in {
 def : WriteRes<WriteFMul64, [FormosaUnitFPALU]>;
 def : WriteRes<WriteFMA64, [FormosaUnitFPALU]>;
+def : WriteRes<WriteFDiv32, [FormosaUnitFPALU]>;
+def : WriteRes<WriteFDiv64, [FormosaUnitFPALU]>;
+def : WriteRes<WriteFSqrt32, [FormosaUnitFPALU]>;
+def : WriteRes<WriteFSqrt64, [FormosaUnitFPALU]>;
 }
-
-// FP division
-// FP division unit on Rocket is not pipelined, so set resource cycles to latency.
-let Latency = 20, ReleaseAtCycles = [20] in {
-def : WriteRes<WriteFDiv32, [FormosaUnitFPDivSqrt]>;
-def : WriteRes<WriteFDiv64, [FormosaUnitFPDivSqrt]>;
-}
-
-// FP square root unit on Rocket is not pipelined, so set resource cycles to latency.
-def : WriteRes<WriteFSqrt32, [FormosaUnitFPDivSqrt]> { let Latency = 20;
-                                                      let ReleaseAtCycles = [20]; }
-def : WriteRes<WriteFSqrt64, [FormosaUnitFPDivSqrt]> { let Latency = 25;
-                                                      let ReleaseAtCycles = [25]; }
 
 // Others
-def : WriteRes<WriteCSR, [FormosaMisc]>;
+def : WriteRes<WriteCSR, [FormosaUnitIALU]> { let Latency = 13; } // CSR goes through ALU
 def : WriteRes<WriteNop, []>;
 
 def : InstRW<[WriteIALU], (instrs COPY)>;
+def : InstRW<[WriteAtomicW], (instregex "^AMOCAS_W")>;
+def : InstRW<[WriteAtomicD], (instregex "^AMOCAS_D_RV64")>;
 
 // Following config is directly copy from RocketModel
 //===----------------------------------------------------------------------===//
